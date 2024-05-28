@@ -44,6 +44,8 @@ namespace KA3D_Tools
                 } }
         }
 
+        public string OutPath;
+
         private string _data;
         public string Data
         {
@@ -115,22 +117,26 @@ namespace KA3D_Tools
 
         private void saveBMP(Bitmap bmp)
         {
+            if (string.IsNullOrWhiteSpace(OutPath))
+            {
+                OutPath = $@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}";
+            }
             switch (outType)
             {
                 case ImageFileType.PNG:
-                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.png", ImageFormat.Png);
+                    bmp.Save($@"{OutPath}\{fileName}.png", ImageFormat.Png);
                     break;
 
                 case ImageFileType.JPG:
-                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.jpg", ImageFormat.Jpeg);
+                    bmp.Save($@"{OutPath}/{fileName}.jpg", ImageFormat.Jpeg);
                     break;
 
                 case ImageFileType.TIFF:
-                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.tiff", ImageFormat.Tiff);
+                    bmp.Save($@"{OutPath}/{fileName}.tiff", ImageFormat.Tiff);
                     break;
 
                 case ImageFileType.BMP:
-                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.bmp", ImageFormat.Bmp);
+                    bmp.Save($@"{OutPath}/{fileName}.bmp", ImageFormat.Bmp);
                     break;
             }
         }

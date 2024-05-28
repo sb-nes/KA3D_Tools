@@ -45,6 +45,8 @@ namespace KA3D_Tools
                 {
                     string[] files = Directory.GetFiles(fbd.SelectedPath, "*.ntx", SearchOption.TopDirectoryOnly);
                     var vm = DataContext as NTX;
+                    vm.OutPath = $@"{fbd.SelectedPath}/NTX Output";
+                    Directory.CreateDirectory(vm.OutPath);
 
                     foreach (var ntx in files)
                     {
@@ -72,6 +74,7 @@ namespace KA3D_Tools
                 var vm = DataContext as NTX;
                 vm.NTXPath = dlg.FileName;
                 vm.outType = outputType;
+                vm.OutPath = System.IO.Path.GetDirectoryName(dlg.FileName);
                 vm.readNTX();
             }
         }
