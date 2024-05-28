@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -30,8 +31,13 @@ namespace KA3D_Tools
         public int                  palettesize;
     }
 
+
     public class NTX : ViewModelBase
     {
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr hObject);
+
+
         private string _ntxPath;
         public string NTXPath
         {
@@ -61,7 +67,19 @@ namespace KA3D_Tools
         public int[] pal; // Table of Common Colours in the image -> Lossless Compression Technique
         public int[] img;
 
-        Bitmap bmp;
+        private Bitmap _img;
+        public Bitmap IMG
+        {
+            get => _img;
+            set
+            {
+                if (_img != value)
+                {
+                    _img = value;
+                    OnPropertyChanged(nameof(IMG));
+                }
+            }
+        }
 
         // Properties -> Build -> Allow Unsafe Code : For using Pointers
 
@@ -115,28 +133,29 @@ namespace KA3D_Tools
 
         private void createBMP(NTX_Header head)
         {
-            bmp = new Bitmap(head.width, head.height);
+            Bitmap bmp = new Bitmap(head.width, head.height);
             for (int y = 0; y < head.height; y++)
             {
                 for (int x = 0; x < head.width; x++)
                 {
                     int i = (y * head.width) + x;
-                    Data += img[i].ToString();
-                    Data += " ";
                     int pixelData = img[i];
-                    
-                    // X4R4G4B4
-                    int a = pixelData;
-                    /*
-                    byte r = bytes[i];
-                    byte g = bytes[i + 1];
-                    byte b = bytes[i + 2];
-                    */
-                    //Color color = Color.FromArgb(a, 0, 0, 0);
-                    //bmp.SetPixel(x, y, color);
+
+                    switch (head.format)
+                    {
+                        case (int)SurfaceFormat.SURFACE_A4R4G4B4:
+                            int a = ((pixelData & 0xF000) >> 8);
+                            int r = ((pixelData & 0x0F00) >> 4);
+                            int g = ((pixelData & 0x00F0));
+                            int b = ((pixelData & 0x000F) << 4);
+                            Color color = Color.FromArgb(a, r, g, b);
+                            bmp.SetPixel(x, y, color);
+                            break;
+                    }
                 }
             }
-
+            bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/home.png", ImageFormat.Png);
+            IMG = bmp;
         }
 
         private void readHeader(BinaryReader bw, NTX_Header head) // Read 14 bytes
@@ -192,7 +211,6 @@ namespace KA3D_Tools
 
         public void readNTX()
         {
-            // format : SurfaceFormat -> namespace gr
             // pitch : int -> width?
             NTX_Header header = new NTX_Header();
             var file = File.Open(_ntxPath, FileMode.Open, FileAccess.Read);
@@ -207,9 +225,12 @@ namespace KA3D_Tools
                 }
                 readPalette(bw, header);
                 readPixelData(bw, header);
-                Debug.WriteLine("Completed");
+                Debug.WriteLine(file.Length - file.Position <= 0);
 
                 // var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
+                var x = (SurfaceFormat)header.format;
+                Data += x.ToString();
+                Data += "\n";
                 createBMP(header);
             }
             
