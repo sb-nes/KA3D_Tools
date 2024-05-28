@@ -1,0 +1,46 @@
+﻿<UserControl x:Class="KA3D_Tools.NTXEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:KA3D_Tools"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <ObjectDataProvider x:Key="filetypeFromEnum"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="local:ImageFileType"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </UserControl.Resources>
+    
+    <UserControl.DataContext>
+        <local:NTX/>
+    </UserControl.DataContext>
+    
+    <Border>
+        <StackPanel>
+            <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                <ComboBox SelectedIndex="0"
+                          Width="100"
+                          VerticalAlignment="Center"
+                          x:Name="filetypeComboBox"
+                          ItemsSource="{Binding Source={StaticResource filetypeFromEnum}}"
+                          SelectionChanged="OnFiletypeComboBox_SelectionChanged"/>
+                
+                <Button Content="Browse"
+                        Click="OnBrowseButton_Clicked"/>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="{Binding NTXPath}"/>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="{Binding Data}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

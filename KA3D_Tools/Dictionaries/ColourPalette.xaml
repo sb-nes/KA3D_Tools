@@ -1,0 +1,44 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:KA3D_Tools.Dictionaries">
+
+    <!--Colours-->
+    <Color x:Key="Tools.Window.Gray1">#ffc5c5c5</Color>
+    <Color x:Key="Tools.Window.Gray2">#ffb0b0b0</Color>
+    <Color x:Key="Tools.Window.Gray3">#ff939393</Color>
+    <Color x:Key="Tools.Window.Gray4">#ff656565</Color>
+    <Color x:Key="Tools.Window.Gray5">#ff494949</Color>
+    <Color x:Key="Tools.Window.Gray6">#ff2E2E2E</Color>
+    
+    
+    <Color x:Key="Tools.Pastel.Red">#ffffabab</Color>
+    <Color x:Key="Tools.Pastel.Green">#ffaff8d8</Color>
+    <Color x:Key="Tools.Pastel.Blue">#ffafcbff</Color>
+    
+    <Color x:Key="Tools.Background">#ffffcbc1</Color>
+    
+    <!--Brushes of Colours-->
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray1}"
+                     x:Key="Tools.Window.GrayBrush1"/>
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray2}"
+                     x:Key="Tools.Window.GrayBrush2"/>
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray3}"
+                     x:Key="Tools.Window.GrayBrush3"/>
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray4}"
+                     x:Key="Tools.Window.GrayBrush4"/>
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray5}"
+                     x:Key="Tools.Window.GrayBrush5"/>
+    <SolidColorBrush Color="{StaticResource Tools.Window.Gray6}"
+                     x:Key="Tools.Window.GrayBrush6"/>
+
+    <SolidColorBrush Color="{StaticResource Tools.Pastel.Blue}"
+                     x:Key="Tools.Pastel.BlueBrush"/>
+    <SolidColorBrush Color="{StaticResource Tools.Pastel.Green}"
+                     x:Key="Tools.Pastel.GreenBrush"/>
+    <SolidColorBrush Color="{StaticResource Tools.Pastel.Red}"
+                     x:Key="Tools.Pastel.RedBrush"/>
+
+    <SolidColorBrush Color="{StaticResource Tools.Background}"
+                     x:Key="Tools.BackgroundBrush"/>
+
+</ResourceDictionary>
