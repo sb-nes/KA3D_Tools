@@ -66,20 +66,7 @@ namespace KA3D_Tools
         public int bitsperpixel = 0;
         public int[] pal; // Table of Common Colours in the image -> Lossless Compression Technique
         public int[] img;
-
-        private Bitmap _img;
-        public Bitmap IMG
-        {
-            get => _img;
-            set
-            {
-                if (_img != value)
-                {
-                    _img = value;
-                    OnPropertyChanged(nameof(IMG));
-                }
-            }
-        }
+        public string fileName;
 
         // Properties -> Build -> Allow Unsafe Code : For using Pointers
 
@@ -144,18 +131,17 @@ namespace KA3D_Tools
                     switch (head.format)
                     {
                         case (int)SurfaceFormat.SURFACE_A4R4G4B4:
-                            int a = ((pixelData & 0xF000) >> 8);
-                            int r = ((pixelData & 0x0F00) >> 4);
-                            int g = ((pixelData & 0x00F0));
-                            int b = ((pixelData & 0x000F) << 4);
+                            int a = ((pixelData & 0xF000) >> 8) + ((pixelData & 0xF000) >> 12);
+                            int r = ((pixelData & 0x0F00) >> 4) + ((pixelData & 0x0F00) >> 8);
+                            int g = (pixelData & 0x00F0) + ((pixelData & 0x00F0) >> 4);
+                            int b = ((pixelData & 0x000F) << 4) + (pixelData & 0x000F);
                             Color color = Color.FromArgb(a, r, g, b);
                             bmp.SetPixel(x, y, color);
                             break;
                     }
                 }
             }
-            bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/home.png", ImageFormat.Png);
-            IMG = bmp;
+            bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.png", ImageFormat.Png);
         }
 
         private void readHeader(BinaryReader bw, NTX_Header head) // Read 14 bytes
@@ -212,6 +198,7 @@ namespace KA3D_Tools
         public void readNTX()
         {
             // pitch : int -> width?
+            fileName = Path.GetFileName(_ntxPath);
             NTX_Header header = new NTX_Header();
             var file = File.Open(_ntxPath, FileMode.Open, FileAccess.Read);
             using (var bw = new BinaryReader(file))
