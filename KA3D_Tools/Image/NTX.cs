@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -24,6 +26,7 @@ namespace KA3D_Tools
         public int                  version;
         public int                  width;
         public int                  height;
+        public int                  format;
         public int                  palettesize;
     }
 
@@ -33,7 +36,7 @@ namespace KA3D_Tools
         public string NTXPath
         {
             get => _ntxPath;
-            set { if(_ntxPath != value)
+            set { if (_ntxPath != value)
                 {
                     _ntxPath = value;
                     OnPropertyChanged(nameof(NTXPath));
@@ -54,53 +57,134 @@ namespace KA3D_Tools
             }
         }
 
-        private void readHeader(BinaryReader bw, NTX_Header head)
+        public int bitsperpixel = 0;
+        public int[] pal; // Table of Common Colours in the image -> Lossless Compression Technique
+        public int[] img;
+
+        Bitmap bmp;
+
+        // Properties -> Build -> Allow Unsafe Code : For using Pointers
+
+        // uint32_t setBytesLE(uint8_t* dst, uint32_t c, int bytesperpixel)
+        public byte[] setBytesLE(byte c, int bytesperpixel)
+        {
+            byte[] dst = new byte[4]; 
+            dst[0] = (byte) c;
+
+            switch (bytesperpixel)
+            {
+                case 4:
+                    dst[3] = (byte)(c >> 24);
+                    dst[2] = (byte)(c >> 16);
+                    dst[1] = (byte)(c >> 8);
+                    break;
+                case 3:
+                    dst[2] = (byte)(c >> 16);
+                    dst[1] = (byte)(c >> 8);
+                    break;
+                case 2:
+                    dst[1] = (byte)(c >> 8);
+                    break;
+            }
+
+            return dst;
+        }
+
+        // uint32_t getBytesLE(uint8_t* src, int bytesperpixel)
+        public int getBytesLE(byte[] src, int bytesperpixel) // this should return a uint32_t
+        {
+            int d = src[0];
+            switch (bytesperpixel)
+            {
+                case 4:
+                    d += src[3] << 24;
+                    d += src[2] << 16;
+                    d += src[1] << 8;
+                    break;
+                case 3:
+                    d += src[2] << 16; 
+                    d += src[1] << 8;
+                    break;
+                case 2:
+                    d += src[1] << 8;
+                    break;
+            }
+            return d; //returns an integer of all bytes
+        }
+
+
+        private void createBMP(NTX_Header head)
+        {
+            bmp = new Bitmap(head.width, head.height);
+            for (int y = 0; y < head.height; y++)
+            {
+                for (int x = 0; x < head.width; x++)
+                {
+                    int i = (y * head.width) + x;
+                    Data += img[i].ToString();
+                    Data += " ";
+                    int pixelData = img[i];
+                    
+                    // X4R4G4B4
+                    int a = pixelData;
+                    /*
+                    byte r = bytes[i];
+                    byte g = bytes[i + 1];
+                    byte b = bytes[i + 2];
+                    */
+                    //Color color = Color.FromArgb(a, 0, 0, 0);
+                    //bmp.SetPixel(x, y, color);
+                }
+            }
+
+        }
+
+        private void readHeader(BinaryReader bw, NTX_Header head) // Read 14 bytes
         {
             head.version = bw.ReadUInt16(); // Version
             head.height = bw.ReadUInt16(); // Height
             head.width = bw.ReadUInt16(); // Width
-            bw.ReadUInt16(); // Format
+            head.format = bw.ReadUInt16(); // Format
             head.palettesize = bw.ReadUInt16(); // Palette Size
+            // I don't think we need the flags rn
             bw.ReadUInt16(); // Flags = 0
             bw.ReadUInt16(); // User Flags = 0
         }
 
-        public void setBytesLE(int[] x, int pal, int size)
+        private void readPalette(BinaryReader bw, NTX_Header head) // What is this palette used for? -> Compression
         {
-
-        }
-        public void getBytesLE(int[] x, int size) // this should return a uint32_t
-        {
-
-        }
-
-        private void readPalette(BinaryReader bw, NTX_Header head)
-        {
-            int bytesperpixel = 0;
-            int[] pal = new int[head.palettesize];
+            int bytesperpixel = bitsperpixel/8;
+            int pixels = head.width * head.height;
+            Debug.Assert(head.palettesize <= pixels);
+            pal = new int[head.palettesize];
             if (head.palettesize > 0)
             {
                 for (int i = 0; i < head.palettesize; ++i)
                 {
-                    int[] bytes = new int[4];
-                    bw.ReadBytes(bytesperpixel);
-                    setBytesLE(bytes, pal[i], bytesperpixel); // am i sending an intptr as bytes???
+                    byte[] bytes;
+                    bytes = bw.ReadBytes(bytesperpixel);
+                    pal[i] = getBytesLE(bytes, bytesperpixel);
                 }
             }
         }
 
         private void readPixelData(BinaryReader bw, NTX_Header head)
         {
-            int bytesperpixel = 0;
+            int bytesperpixel = bitsperpixel/8;
+            img = new int[head.width * head.height * bytesperpixel];
+            int index;
             for(int j = 0; j < head.height; ++j)
             {
                 for(int i = 0; i<head.width; ++i)
                 {
                     if (head.palettesize > 0)
                     {
-
+                        index = bw.ReadByte();
+                        Debug.Assert(index != -1);
+                        Debug.Assert(index >= 0 && index < 256);
+                        img[i + (j * head.width)] = pal[index];
                     } else { // if no palette exists
-                        bw.ReadBytes(bytesperpixel);
+                        img[i + (j * head.width)] = getBytesLE(bw.ReadBytes(bytesperpixel), bytesperpixel);
                     }
                 }
             }
@@ -117,12 +201,16 @@ namespace KA3D_Tools
                 readHeader(bw, header);
                 // This needs to be in an async func.
                 // Data has 2 parts: Palette + Pixel Data
-                readPalette(bw, header);
-                var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
-                foreach(var d in data)
                 {
-                    Data += d;
+                    var vm = new KA3D_Image();
+                    bitsperpixel = (int)vm.FORMAT_DESC[header.format, 0];
                 }
+                readPalette(bw, header);
+                readPixelData(bw, header);
+                Debug.WriteLine("Completed");
+
+                // var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
+                createBMP(header);
             }
             
         }
