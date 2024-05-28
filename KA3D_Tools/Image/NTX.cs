@@ -16,11 +16,6 @@ namespace KA3D_Tools
     {
         /*
         UInt16 
-        version
-        width
-        height
-        format
-        palettesize
         flags
         userflags
         */
@@ -67,6 +62,7 @@ namespace KA3D_Tools
         public int[] pal; // Table of Common Colours in the image -> Lossless Compression Technique
         public int[] img;
         public string fileName;
+        public ImageFileType outType = ImageFileType.PNG;
 
         // Properties -> Build -> Allow Unsafe Code : For using Pointers
 
@@ -117,6 +113,27 @@ namespace KA3D_Tools
             return d; //returns an integer of all bytes
         }
 
+        private void saveBMP(Bitmap bmp)
+        {
+            switch (outType)
+            {
+                case ImageFileType.PNG:
+                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.png", ImageFormat.Png);
+                    break;
+
+                case ImageFileType.JPG:
+                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.jpg", ImageFormat.Jpeg);
+                    break;
+
+                case ImageFileType.TIFF:
+                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.tiff", ImageFormat.Tiff);
+                    break;
+
+                case ImageFileType.BMP:
+                    bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.bmp", ImageFormat.Bmp);
+                    break;
+            }
+        }
 
         private void createBMP(NTX_Header head)
         {
@@ -138,10 +155,13 @@ namespace KA3D_Tools
                             Color color = Color.FromArgb(a, r, g, b);
                             bmp.SetPixel(x, y, color);
                             break;
+                        default:
+                            Data += "Error: Unimplemented Type : " + ((SurfaceFormat)head.format).ToString();
+                            break;
                     }
                 }
             }
-            bmp.Save($@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/{fileName}.png", ImageFormat.Png);
+            saveBMP(bmp);
         }
 
         private void readHeader(BinaryReader bw, NTX_Header head) // Read 14 bytes
@@ -199,6 +219,7 @@ namespace KA3D_Tools
         {
             // pitch : int -> width?
             fileName = Path.GetFileName(_ntxPath);
+            fileName = fileName.Substring(0, fileName.Length - 4);
             NTX_Header header = new NTX_Header();
             var file = File.Open(_ntxPath, FileMode.Open, FileAccess.Read);
             using (var bw = new BinaryReader(file))
@@ -215,9 +236,6 @@ namespace KA3D_Tools
                 Debug.WriteLine(file.Length - file.Position <= 0);
 
                 // var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
-                var x = (SurfaceFormat)header.format;
-                Data += x.ToString();
-                Data += "\n";
                 createBMP(header);
             }
             

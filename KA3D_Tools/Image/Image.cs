@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace KA3D_Tools
 {
-    enum ImageFileType
+    public enum ImageFileType
     {
         PNG,
         JPG,

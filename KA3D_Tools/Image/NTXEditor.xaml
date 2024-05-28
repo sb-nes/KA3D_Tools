@@ -21,19 +21,27 @@
         <local:NTX/>
     </UserControl.DataContext>
     
-    <Border>
-        <StackPanel>
+    <Border Margin="20"
+            Background="{StaticResource Tools.Pastel.RedBrush}"
+            CornerRadius="4">
+        <StackPanel Margin="10">
             <StackPanel Orientation="Horizontal"
                         VerticalAlignment="Center">
                 <ComboBox SelectedIndex="0"
-                          Width="100"
+                          Width="65"
                           VerticalAlignment="Center"
+                          Margin="5,0"
                           x:Name="filetypeComboBox"
                           ItemsSource="{Binding Source={StaticResource filetypeFromEnum}}"
                           SelectionChanged="OnFiletypeComboBox_SelectionChanged"/>
                 
-                <Button Content="Browse"
-                        Click="OnBrowseButton_Clicked"/>
+                <Button Content=" Convert Single File "
+                        Margin="5,0"
+                        Click="OnConvertSingleFileButton_Clicked"/>
+
+                <Button Content=" Convert in Bulk "
+                        Margin="5,0"
+                        Click="OnConvertBulkButton_Clicked"/>
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="{Binding NTXPath}"/>
