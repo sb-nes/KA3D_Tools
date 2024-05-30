@@ -10,7 +10,8 @@ This app is a tool to convert KA3D/Fusion Engine assets back to their general fo
 [Windows](https://github.com/sb-nes/KA3D_Tools/releases/tag/v0.1.5-beta-release)
 
 ## a little error i made in v0.1
-What it looked like:     |     What it should look like:
+
+What it looked like: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; What it should look like:
 
 ![Error Png](./Files/nokia_splash_de_error.png)
-    ![Fixed Png](./Files/nokia_splash_de_fixed.png)
+![Fixed Png](./Files/nokia_splash_de_fixed.png)
