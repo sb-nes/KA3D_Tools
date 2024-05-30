@@ -11,3 +11,4 @@ This app is a tool to convert KA3D/Fusion Engine assets back to their general fo
 
 ## a little error i made in v0.1
 ![Error Png](./Files/nokia_splash_de_error.png)
+![Fixed Png](./Files/nokia_splash_de_fixed.png)
