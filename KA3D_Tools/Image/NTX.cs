@@ -143,22 +143,32 @@ namespace KA3D_Tools
 
         private void createBMP(NTX_Header head)
         {
-            Bitmap bmp = new Bitmap(head.width, head.height);
-            for (int y = 0; y < head.height; y++)
+            Bitmap bmp = new Bitmap(head.height, head.width);
+            int r, g, b, a;
+            Color color;
+            for (int y = 0; y < head.width; y++)
             {
-                for (int x = 0; x < head.width; x++)
+                for (int x = 0; x < head.height; x++)
                 {
-                    int i = (y * head.width) + x;
+                    int i = (y * head.height) + x;
                     int pixelData = img[i];
 
                     switch (head.format)
                     {
                         case (int)SurfaceFormat.SURFACE_A4R4G4B4:
-                            int a = ((pixelData & 0xF000) >> 8) + ((pixelData & 0xF000) >> 12);
-                            int r = ((pixelData & 0x0F00) >> 4) + ((pixelData & 0x0F00) >> 8);
-                            int g = (pixelData & 0x00F0) + ((pixelData & 0x00F0) >> 4);
-                            int b = ((pixelData & 0x000F) << 4) + (pixelData & 0x000F);
-                            Color color = Color.FromArgb(a, r, g, b);
+                            a = ((pixelData & 0xF000) >> 8) + ((pixelData & 0xF000) >> 12);
+                            r = ((pixelData & 0x0F00) >> 4) + ((pixelData & 0x0F00) >> 8);
+                            g = (pixelData & 0x00F0) + ((pixelData & 0x00F0) >> 4);
+                            b = ((pixelData & 0x000F) << 4) + (pixelData & 0x000F);
+                            color = Color.FromArgb(a, r, g, b);
+                            bmp.SetPixel(x, y, color);
+                            break;
+                        case (int)SurfaceFormat.SURFACE_R5G6B5:
+                            a = 255;
+                            r = ((pixelData & 0xF800) >> 8) + 0b111;
+                            g = ((pixelData & 0x07E0) >> 3) + 0b11;
+                            b = ((pixelData & 0x001F) << 3) + 0b111;
+                            color = Color.FromArgb(a, r, g, b);
                             bmp.SetPixel(x, y, color);
                             break;
                         default:
