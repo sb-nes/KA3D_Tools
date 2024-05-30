@@ -6,10 +6,10 @@ This app is a tool to convert KA3D/Fusion Engine assets back to their general fo
 
 [NOTE: not all .hgr files (KA3D engine's gamedata, leveldata, prefabs, etc.) can be directly converted into existing files]
 
-# Downloads
+## Downloads
 [Windows](https://github.com/sb-nes/KA3D_Tools/releases/tag/v0.1.5-beta-release)
 
-# Description
+## Information
 ### NTX
 KA3D stores images and textures as binary NTX files (written using buffer-writer), thus can be read using any buffer-reader.
 It is made up of three parts: Header, Colour Palette, and Pixel Data.
@@ -28,6 +28,8 @@ Colour Palette: Next in buffer of size 'Palette Size' from the header; It is an 
 
 Pixel Data: Remaining data in the buffer; Each Pixel contains the index for its colour to lookup in the colour palette.
 
+### HGR
+???
 
 ### changelog: a little error i made in v0.1
 
