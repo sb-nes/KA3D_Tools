@@ -13,15 +13,6 @@ namespace KA3D_Tools
     /// HGR -> Hierarichal Graphics Library
     /// </summary>
 
-    [StructLayout(LayoutKind.Sequential)]
-    class HGR_Header
-    {
-        public int              m_ver;
-        public int              m_exportedVer;
-        public int              m_dataFlags;
-        public int              m_platformID;
-    }
-
     public class HGR : ViewModelBase
     {
         const int min_version = 170;
@@ -85,152 +76,188 @@ namespace KA3D_Tools
 
             Data += "\n";
         }
-        public void readSceneParameters(BinaryReader bw)
+        public Scene_Parameters readSceneParameters(BinaryReader bw)
         {
-            Data += bw.ReadByte() == 1 ? "fogtype = linear | " : "fogtype = none | ";
+            Scene_Parameters scene_param = new Scene_Parameters();
+            scene_param.fogType = (bw.ReadByte() == 1 ? "linear" : "none");
 
-            Data += "Fog Start = " + Convert.ToString((bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
-                                                      (bw.ReadByte() << 8) + bw.ReadByte(), 16);
+            scene_param.fogStart = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
+                                          (bw.ReadByte() << 8) + bw.ReadByte();
 
-            Data += " | Fog End = " + Convert.ToString((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                                      (bw.ReadByte() << 8) + bw.ReadByte(), 16) + " | ";
+            scene_param.fogEnd = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                        (bw.ReadByte() << 8) + bw.ReadByte();
 
+            scene_param.fogColour = new float[3];
             for (int i = 0; i < 3; ++i)
             {
-                //fogColor[i] = (bw.ReadByte() << 8) + (bw.ReadByte() << 8) + (bw.ReadByte() << 8) + bw.ReadByte();
-                Data += " " + (i+1) + ". " + Convert.ToString((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                                              (bw.ReadByte() << 8) + bw.ReadByte(), 16);
+                scene_param.fogColour[i] = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                           (bw.ReadByte() << 8) + bw.ReadByte(); // Google conversion reveals a minor error in conversion
             }
-            Data += "\n";
+            return scene_param;
         }
 
-        private void readTextureData(BinaryReader bw)
+        private void readTextureData(BinaryReader bw, HGR_Data hgrData)
         {
-            UInt32 texCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
-                                               (bw.ReadByte() << 8) + bw.ReadByte());
-            Data += "Texture Count = " + texCount  + "\n";
+            hgrData.textureCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
+                                                    (bw.ReadByte() << 8) + bw.ReadByte());
+            hgrData.textures = new Texture[hgrData.textureCount];
 
-            for (UInt32 i = 0; i < texCount; i++)
+            for (UInt32 i = 0; i < hgrData.textureCount; i++)
             {
+                Texture tex = new Texture();
                 int size = (bw.ReadByte() << 8) + bw.ReadByte();
-                foreach(char ch in bw.ReadChars(size)) {
-                    Data += ch;
+                foreach (char ch in bw.ReadChars(size))
+                {
+                    tex.fileName += ch;
                 }
                 int type = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
-                Data += size > 15 ? "" : "\t";
-                Data += " \t\t\t" + (type == 1 ? "cubemap" : "texture") + "\n";
+                tex.fileType = (type == 1 ? "cubemap" : "texture");
+                hgrData.textures[i] = tex;
             }
         }
 
-        private void readTexParameter(BinaryReader bw)
+        private Texture_Parameter readTexParameter(BinaryReader bw)
         {
+            Texture_Parameter texParam = new Texture_Parameter();
             // Parameter Type -> String
             int size = (bw.ReadByte() << 8) + bw.ReadByte();
             foreach (char ch in bw.ReadChars(size))
             {
-                Data += ch;
+                texParam.parameterType += ch;
             }
-            UInt16 texIndex = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
+            texParam.textureIndex = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
+
+            return texParam;
         }
-        private void readVec4Parameter(BinaryReader bw)
+        private Vector4_Parameter readVec4Parameter(BinaryReader bw)
         {
+            Vector4_Parameter vec4Param = new Vector4_Parameter();
             int size = (bw.ReadByte() << 8) + bw.ReadByte();
-            foreach (char ch in bw.ReadChars(size))
-            {
-                Data += ch;
+            foreach (char ch in bw.ReadChars(size)) {
+                vec4Param.parameterType += ch;
             }
             float[] value = new float[4];
-            for (int i = 0; i < 4; i++)
-            {
+            for (int i = 0; i < 4; i++) {
                 value[i] = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
             }
+            vec4Param.value = value;
+
+            return vec4Param;
         }
-        private void readFloatParameter(BinaryReader bw)
+        private Float_Parameter readFloatParameter(BinaryReader bw)
         {
+            Float_Parameter fparam = new Float_Parameter();
             int size = (bw.ReadByte() << 8) + bw.ReadByte();
             foreach (char ch in bw.ReadChars(size))
             {
-                Data += ch;
+                fparam.parameterType += ch;
             }
-            float value = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+            fparam.value = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+
+            return fparam;
         }
 
-        private void readMaterialData(BinaryReader bw)
+        private void readMaterialData(BinaryReader bw, HGR_Data hgrData)
         {
-            UInt32 matCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+            hgrData.materialCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                                                (bw.ReadByte() << 8) + bw.ReadByte());
-            Data += "Material Count = " + matCount + "\n";
+            hgrData.materials = new Material[hgrData.materialCount];
 
-            for (UInt32 i = 0; i < matCount; i++)
+            for (UInt32 i = 0; i < hgrData.materialCount; i++)
             {
+                Material mat = new Material();
                 int size = (bw.ReadByte() << 8) + bw.ReadByte();
                 foreach (char ch in bw.ReadChars(size)) {
-                    Data += ch;
+                    mat.name += ch;
                 }
                 size = (bw.ReadByte() << 8) + bw.ReadByte();
                 foreach (char ch in bw.ReadChars(size)) {
-                    Data += ch;
+                    mat.shaderName += ch;
                 }
 
                 // lightmap should be used by Shader -> bit 0 set
-                int lightmap = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+                mat.shaderLightMap = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
 
-                UInt16 textureparamcount = bw.ReadByte();
-                for (UInt16 j = 0; j < textureparamcount; ++j) {
-                    readTexParameter(bw);
+                mat.textureParameterCount = bw.ReadByte();
+                mat.textureParameters = new Texture_Parameter[mat.textureParameterCount];
+                for (UInt16 j = 0; j < mat.textureParameterCount; ++j) {
+                    mat.textureParameters[j] = readTexParameter(bw);
                 }
-                UInt16 vec4paramcount = bw.ReadByte();
-                for (UInt16 j = 0; j < vec4paramcount; ++j)
+
+                mat.Vector4ParameterCount = bw.ReadByte();
+                mat.vector4Parameters = new Vector4_Parameter[mat.Vector4ParameterCount];
+                for (UInt16 j = 0; j < mat.Vector4ParameterCount; ++j)
                 {
-                    readVec4Parameter(bw);
+                    mat.vector4Parameters[j] = readVec4Parameter(bw);
                 }
-                UInt16 floatparamcount = bw.ReadByte();
-                for (UInt16 j = 0; j < floatparamcount; ++j)
+
+                mat.FloatParameterCount = bw.ReadByte();
+                mat.floatParameters = new Float_Parameter[mat.FloatParameterCount];
+                for (UInt16 j = 0; j < mat.FloatParameterCount; ++j)
                 {
-                    readFloatParameter(bw);
+                    mat.floatParameters[j] = readFloatParameter(bw);
                 }
+
+                hgrData.materials[i] = mat;
             }
+        }
+
+        private void readVertexArray(BinaryReader bw)
+        {
+
+        }
+
+        private void readVertexFormat(BinaryReader bw)
+        {
+
+        }
+
+        private void readPrimitiveData(BinaryReader bw, HGR_Data hgrData)
+        {
+
         }
 
         public void readHGR()
         {
             var file = File.Open(filePath, FileMode.Open, FileAccess.Read);
-            HGR_Header header = new HGR_Header();
+            HGR_Data hgrData = new HGR_Data();
+            hgrData.header = new HGR_Header();
             using (var bw = new BinaryReader(file))
             {
                 Debug.Assert(string.Concat(bw.ReadChars(4)) == "hgrf");
-                readHeader(bw, header);
-                readSceneParameters(bw);
+                readHeader(bw, hgrData.header);
+                hgrData.sceneParam = readSceneParameters(bw);
 
-                setCheckID(bw);
+                setCheckID(bw); //0x12345600
 
-                readTextureData(bw);
-                readMaterialData(bw);
-                checkUpdatedID(bw);
+                readTextureData(bw, hgrData);
+                readMaterialData(bw, hgrData);
 
-                //primitives
-                //checkUpdatedID(bw);
+                checkUpdatedID(bw); //0x12345601
+
+                readPrimitiveData(bw, hgrData);
+                //checkUpdatedID(bw); //0x12345602
 
                 //meshes
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345603
 
                 //cameras
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345604
 
                 //lights
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345605
 
                 //dummies
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345606
 
                 //shapes
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345607
 
                 //other nodes
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345608
 
                 //transform animations
-                //checkUpdatedID(bw);
+                //checkUpdatedID(bw); //0x12345609
 
                 //user properties
             }
