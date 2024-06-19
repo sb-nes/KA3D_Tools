@@ -7,6 +7,16 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid Background="{StaticResource Tools.BackgroundBrush}">
-        <local:NTXEditor/>
+        <TabControl Margin="5"
+                    BorderBrush="Transparent"
+                    Background="{StaticResource Tools.BackgroundBrush}">
+            <TabItem IsSelected="True"
+                     Header="NTX Editor">
+                <local:NTXEditor/>
+            </TabItem>
+            <TabItem Header="HGR Editor">
+                <local:HGREditor/>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>
