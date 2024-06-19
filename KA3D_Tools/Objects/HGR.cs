@@ -209,28 +209,28 @@ namespace KA3D_Tools
                 checkUpdatedID(bw);
 
                 //primitives
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //meshes
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //cameras
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //lights
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //dummies
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //shapes
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //other nodes
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //transform animations
-                checkUpdatedID(bw);
+                //checkUpdatedID(bw);
 
                 //user properties
             }
