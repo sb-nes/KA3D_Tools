@@ -202,19 +202,137 @@ namespace KA3D_Tools
             }
         }
 
-        private void readVertexArray(BinaryReader bw)
+        // Source of Error
+        private VertexArray readVertexArray(BinaryReader bw, string df, UInt32 vertices)
         {
+            VertexArray vArray = new VertexArray();
+            vArray.scale = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                           (bw.ReadByte() << 8) + bw.ReadByte();
+            vArray.bias = new Utilities.float4();
+            vArray.bias.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                            (bw.ReadByte() << 8) + bw.ReadByte();
+            vArray.bias.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                            (bw.ReadByte() << 8) + bw.ReadByte();
+            vArray.bias.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                            (bw.ReadByte() << 8) + bw.ReadByte();
+            vArray.bias.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                            (bw.ReadByte() << 8) + bw.ReadByte();
 
+            vArray.vert0 = new Utilities.float4[vertices];
+            switch (df)
+            {
+                case "DF_S_16":
+                    for (int i = 0; i < vertices; ++i)
+                    {
+                        vArray.vert0[i] = new Utilities.float4();
+                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
+                    }
+                    break;
+
+                case "DF_V2_16":
+                    for (int i = 0; i < vertices; ++i)
+                    {
+                        vArray.vert0[i] = new Utilities.float4();
+                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].y = (bw.ReadByte() << 8) + bw.ReadByte();
+                    }
+                    break;
+
+                case "DF_V3_16":
+                    for (int i = 0; i < vertices; ++i)
+                    {
+                        vArray.vert0[i] = new Utilities.float4();
+                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].y = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].z = (bw.ReadByte() << 8) + bw.ReadByte();
+                    }
+                    break;
+
+                case "DF_V4_16":
+                    for (int i = 0; i < vertices; ++i)
+                    {
+                        vArray.vert0[i] = new Utilities.float4();
+                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].y = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].z = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].w = (bw.ReadByte() << 8) + bw.ReadByte();
+                    }
+                    break;
+
+                default:
+                    Data = "Unimplemented type: " + df;
+                    break;
+            }
+
+            // v = v0 * scale + bias
+
+            return vArray;
         }
 
-        private void readVertexFormat(BinaryReader bw)
+        private VertexFormat readVertexFormat(BinaryReader bw)
         {
+            VertexFormat vForm = new VertexFormat();
+            vForm.vertexComponenetCount = bw.ReadByte();
+            vForm.vertexComponents = new VertexComponent[vForm.vertexComponenetCount];
 
+            for (UInt16 i = 0; i < vForm.vertexComponenetCount; ++i)
+            {
+                VertexComponent vComp = new VertexComponent();
+                int size = (bw.ReadByte() << 8) + bw.ReadByte();
+                foreach (char ch in bw.ReadChars(size))
+                {
+                    vComp.vertexDataType += ch;
+                }
+                size = (bw.ReadByte() << 8) + bw.ReadByte();
+                foreach (char ch in bw.ReadChars(size)) // This is without 'DF_'
+                {
+                    vComp.vertexDataFormat += ch;
+                }
+                vComp.vertexDataFormat = "DF_" + vComp.vertexDataFormat;
+
+                vForm.vertexComponents[i] = vComp;
+            }
+
+            return vForm;
         }
 
         private void readPrimitiveData(BinaryReader bw, HGR_Data hgrData)
         {
+            hgrData.primitiveCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                      (bw.ReadByte() << 8) + bw.ReadByte());
+            hgrData.primitives = new Primitive[hgrData.primitiveCount];
+            for (UInt32 i = 0; i < hgrData.primitiveCount; i++)
+            {
+                Primitive prim = new Primitive();
+                prim.vertices = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                 (bw.ReadByte() << 8) + bw.ReadByte());
+                prim.indices = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                 (bw.ReadByte() << 8) + bw.ReadByte());
+                prim.vFormat = readVertexFormat(bw);
+                prim.materialIndex = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
+                prim.primitiveType = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte()); // Refer PrimType in Useless
 
+                prim.vertexArray = new VertexArray[prim.vFormat.vertexComponenetCount];
+                for (UInt32 j = 0; j<prim.vFormat.vertexComponenetCount; ++j)
+                {
+                    prim.vertexArray[j] = readVertexArray(bw, prim.vFormat.vertexComponents[j].vertexDataFormat, prim.vertices);
+                }
+
+                prim.indexData = new UInt16[prim.indices];
+                for (UInt32 j = 0; j < prim.indices; ++j)
+                {
+                    prim.indexData[j] = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
+                }
+
+                prim.usedBoneCount = bw.ReadByte();
+                prim.usedBoneArray = new UInt16[prim.usedBoneCount];
+                for (UInt16 j = 0; j < prim.usedBoneCount; j++)
+                {
+                    prim.usedBoneArray[j] = bw.ReadByte();
+                }
+
+                hgrData.primitives[i] = prim;
+            }
         }
 
         public void readHGR()
@@ -236,7 +354,7 @@ namespace KA3D_Tools
                 checkUpdatedID(bw); //0x12345601
 
                 readPrimitiveData(bw, hgrData);
-                //checkUpdatedID(bw); //0x12345602
+                checkUpdatedID(bw); //0x12345602
 
                 //meshes
                 //checkUpdatedID(bw); //0x12345603

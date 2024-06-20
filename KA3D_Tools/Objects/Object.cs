@@ -70,19 +70,38 @@ namespace KA3D_Tools
     [StructLayout(LayoutKind.Sequential)]
     public class VertexArray
     {
+        public float scale;
+        public Utilities.float4 bias;
 
+        public Utilities.float4[] vert0; // size of dataFormat
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public class VertexComponent
+    {
+        public string vertexDataType; // Check if the prefix is 'DT_'
+        public string vertexDataFormat; // Add the prefix 'DF_'
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public class VertexFormat
     {
-
+        public UInt16 vertexComponenetCount;
+        public VertexComponent[] vertexComponents; 
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public class Primitive
     {
-
+        public UInt32 vertices;
+        public UInt32 indices;
+        public VertexFormat vFormat;
+        public UInt16 materialIndex;
+        public UInt16 primitiveType;
+        public VertexArray[] vertexArray;
+        public UInt16[] indexData;
+        public UInt16 usedBoneCount;
+        public UInt16[] usedBoneArray;
     }
 
     [StructLayout(LayoutKind.Sequential)]
