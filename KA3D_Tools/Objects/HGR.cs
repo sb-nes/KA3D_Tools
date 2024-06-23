@@ -215,8 +215,6 @@ namespace KA3D_Tools
                             (bw.ReadByte() << 8) + bw.ReadByte();
             vArray.bias.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                             (bw.ReadByte() << 8) + bw.ReadByte();
-            vArray.bias.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                            (bw.ReadByte() << 8) + bw.ReadByte();
 
             vArray.vert0 = new Utilities.float4[vertices];
             switch (df)
@@ -249,6 +247,8 @@ namespace KA3D_Tools
                     break;
 
                 case "DF_V4_16":
+                    vArray.bias.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                    (bw.ReadByte() << 8) + bw.ReadByte();
                     for (int i = 0; i < vertices; ++i)
                     {
                         vArray.vert0[i] = new Utilities.float4();
