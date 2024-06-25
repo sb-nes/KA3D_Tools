@@ -120,13 +120,26 @@ namespace KA3D_Tools
         public Primitive[] primitives;
 
         public UInt32 meshCount;
+        public Mesh[] meshes;
+
         public UInt32 cameraCount;
+        public Camera[] cameras;
+
         public UInt32 lightCount;
+        public Light[] lights;
+
         public UInt32 dummyCount;
+        public Dummy[] dummies;
+
         public UInt32 shapeCount;
+        public HGRShape[] shapes;
+
         public UInt32 otherNodeCount;
+
         public UInt32 transformAnimationCount;
+
         public UInt32 userPropertyCount;
+
     }
 
     class Object

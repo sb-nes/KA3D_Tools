@@ -13,6 +13,13 @@ namespace KA3D_Tools.Utilities
         public float z; 
         public float w; 
     }
+
+    public class float3x4
+    {
+        public float4 a;
+        public float4 b;
+        public float4 c;
+    }
     class MathUtil
     {
     }

@@ -202,7 +202,7 @@ namespace KA3D_Tools
             }
         }
 
-        // Source of Error
+        // Contains Unimplemented Data-Type read methods
         private VertexArray readVertexArray(BinaryReader bw, string df, UInt32 vertices)
         {
             VertexArray vArray = new VertexArray();
@@ -335,6 +335,155 @@ namespace KA3D_Tools
             }
         }
 
+        private Node readNodeData(BinaryReader bw)
+        {
+            Node node = new Node();
+
+            int size = (bw.ReadByte() << 8) + bw.ReadByte();
+            foreach (char ch in bw.ReadChars(size))
+            {
+                node.name += ch;
+            }
+
+            node.modeltm = new Utilities.float3x4();
+
+            node.modeltm.a = new Utilities.float4();
+            node.modeltm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.a.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.a.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+
+            node.modeltm.b = new Utilities.float4();
+            node.modeltm.b.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.b.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.b.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.b.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+
+            node.modeltm.c = new Utilities.float4();
+            node.modeltm.c.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.c.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.c.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.c.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+
+            node.nodeFlags = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                              (bw.ReadByte() << 8) + bw.ReadByte());
+
+            // Some unidentified data of size 4 bytes
+            int uid = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                      (bw.ReadByte() << 8) + bw.ReadByte();
+
+            node.parentIndex = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+
+            return node;
+        }
+
+        private MeshBone readMeshBoneData(BinaryReader bw)
+        {
+            MeshBone meshBone = new MeshBone();
+
+            meshBone.boneNodeIndex = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                      (bw.ReadByte() << 8) + bw.ReadByte());
+
+            meshBone.invresttm = new Utilities.float3x4();
+
+            meshBone.invresttm.a = new Utilities.float4();
+            meshBone.invresttm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.a.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.a.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+
+            meshBone.invresttm.b = new Utilities.float4();
+            meshBone.invresttm.b.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.b.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.b.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.b.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+
+            meshBone.invresttm.c = new Utilities.float4();
+            meshBone.invresttm.c.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.c.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.c.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm.c.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                     (bw.ReadByte() << 8) + bw.ReadByte();
+
+            return meshBone;
+        }
+
+        private void readMeshData(BinaryReader bw, HGR_Data hgrData)
+        {
+            hgrData.meshCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                 (bw.ReadByte() << 8) + bw.ReadByte());
+            hgrData.meshes = new Mesh[hgrData.meshCount];
+            for (UInt32 i = 0; i < hgrData.meshCount; ++i)
+            {
+                Mesh mesh = new Mesh();
+                mesh.node = readNodeData(bw);
+
+                mesh.primitiveCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                       (bw.ReadByte() << 8) + bw.ReadByte());
+                mesh.primitiveIndices = new UInt32[mesh.primitiveCount];
+                for (UInt32 j = 0; j < mesh.primitiveCount; ++j)
+                {
+                    mesh.primitiveIndices[j] = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                                (bw.ReadByte() << 8) + bw.ReadByte()); ;
+                }
+
+                mesh.boneCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                  (bw.ReadByte() << 8) + bw.ReadByte());
+                mesh.bones = new MeshBone[mesh.boneCount];
+
+                for (UInt32 j = 0; j< mesh.boneCount; ++j)
+                {
+                    mesh.bones[j] = readMeshBoneData(bw);
+                }
+
+                hgrData.meshes[i] = mesh;
+            }
+        }
+
+        private void readCameraData(BinaryReader bw, HGR_Data hgrData)
+        {
+            hgrData.cameraCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                                   (bw.ReadByte() << 8) + bw.ReadByte());
+            hgrData.cameras = new Camera[hgrData.cameraCount];
+            for (UInt32 i = 0; i < hgrData.cameraCount; ++i)
+            {
+                Camera camera = new Camera();
+
+                camera.front = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                               (bw.ReadByte() << 8) + bw.ReadByte();
+                camera.back = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                              (bw.ReadByte() << 8) + bw.ReadByte();
+                camera.horzFOV = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+                                 (bw.ReadByte() << 8) + bw.ReadByte();
+
+                hgrData.cameras[i] = camera;
+            }
+        }
+
         public void readHGR()
         {
             var file = File.Open(filePath, FileMode.Open, FileAccess.Read);
@@ -356,11 +505,11 @@ namespace KA3D_Tools
                 readPrimitiveData(bw, hgrData);
                 checkUpdatedID(bw); //0x12345602
 
-                //meshes
-                //checkUpdatedID(bw); //0x12345603
+                readMeshData(bw, hgrData);
+                checkUpdatedID(bw); //0x12345603
 
-                //cameras
-                //checkUpdatedID(bw); //0x12345604
+                readCameraData(bw, hgrData);
+                checkUpdatedID(bw); //0x12345604
 
                 //lights
                 //checkUpdatedID(bw); //0x12345605
