@@ -16,7 +16,12 @@ namespace KA3D_Tools
         /// Assimp then converts it to FBX!
         /// </summary>
         
+        public List<AssimpC.Mesh> StoreMesh(HGR_Data hgrData)
+        {
+            List<AssimpC.Mesh> meshes = new List<AssimpC.Mesh>();
 
+            return meshes;
+        }
         public List<AssimpC.Material> StoreMaterial(Material[] hgrMaterials)
         {
             List<AssimpC.Material> materials = new List<AssimpC.Material>();
@@ -26,6 +31,7 @@ namespace KA3D_Tools
                 AssimpC.Material mat = new AssimpC.Material(); // i'm thinking to keep the rest default
                 mat.Name = hgrMaterials[i].name;
                 mat.IsTwoSided = false;
+                mat.ShadingMode = ShadingMode.NoShading;
 
                 float[] vec4;
                 vec4 = hgrMaterials[i].vector4Parameters[0].value; // Ambient Colour
@@ -36,13 +42,20 @@ namespace KA3D_Tools
                 mat.ColorSpecular = new Color4D(vec4[0], vec4[1], vec4[2], vec4[3]);
 
                 mat.Shininess = hgrMaterials[i].floatParameters[0].value;
+
+                materials.Add(mat);
             }
 
             return materials;
         }
         public void StoreHGR(HGR_Data hgrData)
         {
-            StoreMaterial(hgrData.materials);
+            AssimpC.Scene baseHGR = new AssimpC.Scene();
+            baseHGR.Materials = StoreMaterial(hgrData.materials);
+            baseHGR.Meshes = StoreMesh(hgrData);
+
+            IntPtr unData = AssimpC.Scene.ToUnmanagedScene(baseHGR);
+            ExportFBXScene(unData);
         }
 
         private void ExportFBXScene(IntPtr unmanagedData)
@@ -53,8 +66,8 @@ namespace KA3D_Tools
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
-
-            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Output/bounce.fbx");
+            // This part doesn't work rn, or maybe at all
+            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.fbx");
             assimpExporter.ExportFile(scene, outputPath, "fbx", PostProcessSteps.None);
         }
     }
