@@ -527,6 +527,9 @@ namespace KA3D_Tools
                 //checkUpdatedID(bw); //0x12345609
 
                 //user properties
+
+                Exporter x = new Exporter();
+                x.StoreHGR(hgrData);
             }
         }
     }
