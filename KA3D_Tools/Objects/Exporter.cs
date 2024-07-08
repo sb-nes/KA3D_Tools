@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,82 @@ namespace KA3D_Tools
         public List<AssimpC.Mesh> StoreMesh(HGR_Data hgrData)
         {
             List<AssimpC.Mesh> meshes = new List<AssimpC.Mesh>();
+
+            for(int i = 0; i < hgrData.meshes.Length; ++i)
+            {
+                AssimpC.Mesh mesh = new AssimpC.Mesh();
+
+                foreach (var primIndex in hgrData.meshes[i].primitiveIndices)
+                {
+                    mesh.Name = hgrData.meshes[i].node.name;
+
+                    switch (hgrData.primitives[primIndex].primitiveType)
+                    {
+                        case 0:
+                        mesh.PrimitiveType = PrimitiveType.Point;
+                        break;
+
+                        case 1:
+                        mesh.PrimitiveType = PrimitiveType.Line;
+                        break;
+
+                        case 3:
+                        mesh.PrimitiveType = PrimitiveType.Triangle;
+                        break;
+
+                        case 6:
+                        mesh.PrimitiveType = PrimitiveType.Polygon;
+                        break;
+
+                        default:
+                        mesh.PrimitiveType = PrimitiveType.Polygon;
+                        break;
+                    }
+
+                    mesh.MaterialIndex = hgrData.primitives[primIndex].materialIndex;
+                    uint verts = hgrData.primitives[primIndex].vertices;
+
+                    var temp = hgrData.primitives[primIndex].vertexArray;
+                    mesh.Vertices = new List<Vector3D>(); 
+                    foreach (var vertData in temp[0].vert0) // Vertices
+                    {
+                        var vert = new Vector3D(vertData.x, vertData.y, vertData.z);
+                        mesh.Vertices.Add(vert);
+                    }
+
+                    mesh.TextureCoordinateChannels = new List<Vector3D>[1]; //Channel 0 is default for UV
+                    mesh.TextureCoordinateChannels[0] = new List<Vector3D>();
+
+                    foreach (var vertData in temp[1].vert0) // Tex_Coords
+                    {
+                        var vert = new Vector3D(vertData.x, vertData.y, 0);
+                        mesh.TextureCoordinateChannels[0].Add(vert);
+                    }
+
+                    mesh.Faces = new List<AssimpC.Face>(); // Faces / Indices
+                    switch (mesh.PrimitiveType)
+                    {
+                        case PrimitiveType.Triangle:
+                        for (int j = 0; j < hgrData.primitives[primIndex].indices; ++j)
+                            {
+                                var face = new AssimpC.Face();
+
+                                face.Indices.Add(hgrData.primitives[primIndex].indexData[j++]);
+                                face.Indices.Add(hgrData.primitives[primIndex].indexData[j++]);
+                                face.Indices.Add(hgrData.primitives[primIndex].indexData[j]);
+
+                                mesh.Faces.Add(face);
+                            }
+                        break;
+
+                        default:
+                        Debug.WriteLine("Unimplemented Type");
+                        break;
+                    }
+
+                    meshes.Add(mesh);
+                }
+            }
 
             return meshes;
         }
@@ -68,6 +145,12 @@ namespace KA3D_Tools
 
             // This part doesn't work rn, or maybe at all
             String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.fbx");
+            assimpExporter.ExportFile(scene, outputPath, "fbx", PostProcessSteps.None);
+
+            String inputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jackFrost.fbx");
+            scene = assimpExporter.ImportFile(inputPath, PostProcessSteps.None);
+            outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jack.fbx");
+
             assimpExporter.ExportFile(scene, outputPath, "fbx", PostProcessSteps.None);
         }
     }

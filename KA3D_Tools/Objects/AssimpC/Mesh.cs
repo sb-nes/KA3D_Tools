@@ -202,6 +202,10 @@ namespace KA3D_Tools.AssimpC
             {
                 return m_faces;
             }
+            set
+            {
+                m_faces = value;
+            }
         }
 
         /// <summary>
@@ -266,6 +270,10 @@ namespace KA3D_Tools.AssimpC
             {
                 return m_texCoords;
             }
+            set
+            {
+                m_texCoords = value;
+            }
         }
 
         /// <summary>
@@ -278,6 +286,10 @@ namespace KA3D_Tools.AssimpC
             get
             {
                 return m_texComponentCount;
+            }
+            set
+            {
+                m_texComponentCount = value;
             }
         }
 
