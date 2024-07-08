@@ -6,10 +6,10 @@
         xmlns:local="clr-namespace:KA3D_Tools"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid Background="{StaticResource Tools.BackgroundBrush}">
+    <Grid Background="{StaticResource Tools.Window.GrayBrush4}">
         <TabControl Margin="5"
                     BorderBrush="Transparent"
-                    Background="{StaticResource Tools.BackgroundBrush}">
+                    Background="{StaticResource Tools.Window.GrayBrush3}">
             <TabItem IsSelected="True"
                      Header="NTX Editor">
                 <local:NTXEditor/>

@@ -13,9 +13,10 @@
     
     <Color x:Key="Tools.Pastel.Red">#ffffabab</Color>
     <Color x:Key="Tools.Pastel.Green">#ffaff8d8</Color>
-    <Color x:Key="Tools.Pastel.Blue">#ffafcbff</Color>
+    <Color x:Key="Tools.Pastel.Blue">#ffbae1ff</Color>
     
-    <Color x:Key="Tools.Background">#ffffcbc1</Color>
+    <Color x:Key="Tools.Background">#ffafcbff</Color>
+    <Color x:Key="Tools.Background2">#ff70a0cc</Color>
     
     <!--Brushes of Colours-->
     <SolidColorBrush Color="{StaticResource Tools.Window.Gray1}"

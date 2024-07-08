@@ -22,7 +22,7 @@
     </UserControl.DataContext>
     
     <Border Margin="20"
-            Background="{StaticResource Tools.Pastel.RedBrush}"
+            Background="{StaticResource Tools.BackgroundBrush}"
             CornerRadius="4">
         <StackPanel Margin="10">
             <StackPanel Orientation="Horizontal"
