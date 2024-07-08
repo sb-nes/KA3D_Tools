@@ -127,10 +127,22 @@ namespace KA3D_Tools
 
             return materials;
         }
+        public AssimpC.Node CreateRootNode()
+        {
+            AssimpC.Node root = new AssimpC.Node();
+
+            root.Name = "RootNode";
+            root.Parent = null;
+            root.Transform = new Matrix4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1); // Identity Matrix
+            root.Children = new AssimpC.NodeCollection(root);
+
+            return root;
+        }
         public void StoreHGR(HGR_Data hgrData)
         {
             AssimpC.Scene baseHGR = new AssimpC.Scene();
             baseHGR.Materials = StoreMaterial(hgrData.materials);
+            baseHGR.RootNode = CreateRootNode();
             baseHGR.Meshes = StoreMesh(hgrData);
 
             IntPtr unData = AssimpC.Scene.ToUnmanagedScene(baseHGR);
@@ -147,16 +159,16 @@ namespace KA3D_Tools
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
-            // This part doesn't work rn, or maybe at all
+            // Now, Export works with root node. Also, now in a try...catch block if any error occurs while writing file.
             String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.dae");
-            assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
-
-            // This part works...
-            String inputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jackFrost.fbx");
-            scene = assimpExporter.ImportFile(inputPath, PostProcessSteps.None);
-            outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jack.fbx");
-
-            assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
+            try
+            {
+                assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
+            }
+            catch(Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
         }
     }
 }

@@ -56,6 +56,10 @@ namespace KA3D_Tools.AssimpC
             {
                 return m_parent;
             }
+            set
+            {
+                m_parent = value;
+            }
         }
 
         /// <summary>
@@ -88,6 +92,10 @@ namespace KA3D_Tools.AssimpC
             get
             {
                 return m_children;
+            }
+            set
+            {
+                m_children = value;
             }
         }
 
@@ -123,6 +131,10 @@ namespace KA3D_Tools.AssimpC
             get
             {
                 return m_meshes;
+            }
+            set
+            {
+                m_meshes = value;
             }
         }
 
