@@ -151,6 +151,7 @@ namespace KA3D_Tools
             String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.dae");
             assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
 
+            // This part works...
             String inputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jackFrost.fbx");
             scene = assimpExporter.ImportFile(inputPath, PostProcessSteps.None);
             outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jack.fbx");
