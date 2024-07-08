@@ -9,14 +9,16 @@ using Assimp;
 
 namespace KA3D_Tools
 {
+    /// <summary>
+    /// Final Conversion to FBX:
+    /// HGR interpreted data is converted to IntPtr (Native Pointer) using MemoryHelper Structure.
+    /// Assimp then converts it to FBX!
+    /// </summary>
     public class Exporter
     {
-        /// <summary>
-        /// Final Conversion to FBX:
-        /// HGR interpreted data is converted to IntPtr (Native Pointer) using MemoryHelper Structure.
-        /// Assimp then converts it to FBX!
-        /// </summary>
-        
+
+        public ExportFormatDescription[] formatIds;
+
         public List<AssimpC.Mesh> StoreMesh(HGR_Data hgrData)
         {
             List<AssimpC.Mesh> meshes = new List<AssimpC.Mesh>();
@@ -138,20 +140,22 @@ namespace KA3D_Tools
         private void ExportFBXScene(IntPtr unmanagedData)
         {
             AssimpContext assimpExporter = new AssimpContext();
+            string[] formatsIn = assimpExporter.GetSupportedImportFormats();
+            formatIds = assimpExporter.GetSupportedExportFormats();
             Scene scene = Scene.FromUnmanagedScene(unmanagedData); // FromUnmanagedScene (IntPtr) to ManagedScene
 
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
             // This part doesn't work rn, or maybe at all
-            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.fbx");
-            assimpExporter.ExportFile(scene, outputPath, "fbx", PostProcessSteps.None);
+            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.dae");
+            assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
 
             String inputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jackFrost.fbx");
             scene = assimpExporter.ImportFile(inputPath, PostProcessSteps.None);
             outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "jack.fbx");
 
-            assimpExporter.ExportFile(scene, outputPath, "fbx", PostProcessSteps.None);
+            assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
         }
     }
 }
