@@ -15,6 +15,7 @@ namespace KA3D_Tools
         public float3x4 modeltm;
         public UInt32 nodeFlags;
         public int parentIndex;
+        public int uid;
     }
 
     [StructLayout(LayoutKind.Sequential)]

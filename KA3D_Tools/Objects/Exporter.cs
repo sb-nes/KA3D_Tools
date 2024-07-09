@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Assimp;
 
 namespace KA3D_Tools
@@ -16,8 +13,18 @@ namespace KA3D_Tools
     /// </summary>
     public class Exporter
     {
-
+        private AssimpC.Scene baseHGR;
         public ExportFormatDescription[] formatIds;
+
+        private Matrix4x4 copyTransform(Utilities.float3x4 modelTm)
+
+        {
+            Matrix4x4 transform = new Matrix4x4(modelTm.a.x, modelTm.a.y, modelTm.a.z, modelTm.a.w, 
+                                                modelTm.b.x, modelTm.b.y, modelTm.b.z, modelTm.b.w, 
+                                                modelTm.c.x, modelTm.c.y, modelTm.c.z, modelTm.c.w, 
+                                                0, 0, 0, 1);
+            return transform;
+        }
 
         public List<AssimpC.Mesh> StoreMesh(HGR_Data hgrData)
         {
@@ -26,6 +33,29 @@ namespace KA3D_Tools
             for(int i = 0; i < hgrData.meshes.Length; ++i)
             {
                 AssimpC.Mesh mesh = new AssimpC.Mesh();
+                AssimpC.Node item = new AssimpC.Node();
+
+                item.Name = hgrData.meshes[i].node.name;
+                item.Children = new AssimpC.NodeCollection(item);
+                item.Transform = copyTransform(hgrData.meshes[i].node.modeltm);
+
+                foreach (var index in hgrData.meshes[i].primitiveIndices) {
+                    item.MeshIndices.Add(Convert.ToInt32(index));
+                }
+
+                var parIndx = hgrData.meshes[i].node.parentIndex;
+
+                item.Parent = baseHGR.RootNode;
+                baseHGR.RootNode.Children.Add(item);
+
+                /*
+                if (parIndx == -1) {
+                    item.Parent = baseHGR.RootNode;
+                    baseHGR.RootNode.Children.Add(item);
+                } else {
+                    item.Parent = parIndx;
+                }
+                */
 
                 foreach (var primIndex in hgrData.meshes[i].primitiveIndices)
                 {
@@ -140,7 +170,7 @@ namespace KA3D_Tools
         }
         public void StoreHGR(HGR_Data hgrData)
         {
-            AssimpC.Scene baseHGR = new AssimpC.Scene();
+            baseHGR = new AssimpC.Scene();
             baseHGR.Materials = StoreMaterial(hgrData.materials);
             baseHGR.RootNode = CreateRootNode();
             baseHGR.Meshes = StoreMesh(hgrData);
@@ -161,14 +191,16 @@ namespace KA3D_Tools
 
             // Now, Export works with root node. Also, now in a try...catch block if any error occurs while writing file.
             String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.dae");
+            bool test = false;
             try
             {
-                assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
+                test = assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
             }
             catch(Exception ex)
             {
                 Debug.WriteLine(ex.Message);
             }
+            test = false;
         }
     }
 }

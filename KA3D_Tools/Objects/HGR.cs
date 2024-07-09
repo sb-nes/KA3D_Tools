@@ -348,44 +348,38 @@ namespace KA3D_Tools
             node.modeltm = new Utilities.float3x4();
 
             node.modeltm.a = new Utilities.float4();
-            node.modeltm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.a.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.a.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.a.x = bw.ReadSingle();
+            node.modeltm.a.y = bw.ReadSingle();
+            node.modeltm.a.z = bw.ReadSingle();
+            node.modeltm.a.w = bw.ReadSingle();
+            //node.modeltm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+            //                   (bw.ReadByte() << 8) + bw.ReadByte();
+            //node.modeltm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+            //                   (bw.ReadByte() << 8) + bw.ReadByte();
+            //node.modeltm.a.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+            //                   (bw.ReadByte() << 8) + bw.ReadByte();
+            //node.modeltm.a.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
+            //                   (bw.ReadByte() << 8) + bw.ReadByte();
 
             node.modeltm.b = new Utilities.float4();
-            node.modeltm.b.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.b.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.b.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.b.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.b.x = bw.ReadSingle();
+            node.modeltm.b.y = bw.ReadSingle();
+            node.modeltm.b.z = bw.ReadSingle();
+            node.modeltm.b.w = bw.ReadSingle();
 
             node.modeltm.c = new Utilities.float4();
-            node.modeltm.c.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.c.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.c.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
-            node.modeltm.c.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.modeltm.c.x = bw.ReadSingle();
+            node.modeltm.c.y = bw.ReadSingle();
+            node.modeltm.c.z = bw.ReadSingle();
+            node.modeltm.c.w = bw.ReadSingle();
 
             node.nodeFlags = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                                               (bw.ReadByte() << 8) + bw.ReadByte());
 
             // Some unidentified data of size 4 bytes
-            int uid = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                      (bw.ReadByte() << 8) + bw.ReadByte();
+            node.uid = bw.ReadInt32();
 
-            node.parentIndex = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                               (bw.ReadByte() << 8) + bw.ReadByte();
+            node.parentIndex = bw.ReadInt32();
 
             return node;
         }
@@ -490,8 +484,8 @@ namespace KA3D_Tools
             HGR_Data hgrData = new HGR_Data();
             hgrData.header = new HGR_Header();
             using (var bw = new BinaryReader(file))
-            {
-                Debug.Assert(string.Concat(bw.ReadChars(4)) == "hgrf");
+            using (var br = new BinaryReader(file, System.Text.Encoding.BigEndianUnicode)) {
+                Debug.Assert(string.Concat(bw.ReadChars(4)) == "hgrf"); br.ReadChars(4);
                 readHeader(bw, hgrData.header);
                 hgrData.sceneParam = readSceneParameters(bw);
 
