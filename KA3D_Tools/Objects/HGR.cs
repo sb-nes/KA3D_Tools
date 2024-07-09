@@ -35,6 +35,59 @@ namespace KA3D_Tools
         public string filePath;
         public UInt32 CheckID;
 
+        private float readSingleBigEndian(BinaryReader bw)
+        {
+            var bytes = bw.ReadBytes(4);
+            Array.Reverse(bytes);
+            return BitConverter.ToSingle(bytes, 0);
+        }
+
+        private int readIntBigEndian(BinaryReader bw)
+        {
+            var bytes = bw.ReadBytes(4);
+            Array.Reverse(bytes);
+            return BitConverter.ToInt32(bytes, 0);
+        }
+
+        private UInt16 readUInt16BigEndian(BinaryReader bw)
+        {
+            var bytes = bw.ReadBytes(2);
+            Array.Reverse(bytes);
+            return BitConverter.ToUInt16(bytes, 0);
+        }
+
+        private Utilities.float4 readFloat3(BinaryReader bw)
+        {
+            Utilities.float4 f = new Utilities.float4();
+
+            f.x = readSingleBigEndian(bw);
+            f.y = readSingleBigEndian(bw);
+            f.z = readSingleBigEndian(bw);
+
+            return f;
+        }
+        private Utilities.float4 readFloat4(BinaryReader bw)
+        {
+            Utilities.float4 f = new Utilities.float4();
+
+            f.x = readSingleBigEndian(bw);
+            f.y = readSingleBigEndian(bw);
+            f.z = readSingleBigEndian(bw);
+            f.w = readSingleBigEndian(bw);
+
+            return f;
+        }
+        private Utilities.float3x4 readFloat3x4(BinaryReader bw)
+        {
+            Utilities.float3x4 fArray = new Utilities.float3x4();
+
+            fArray.a = readFloat4(bw);
+            fArray.b = readFloat4(bw);
+            fArray.c = readFloat4(bw);
+
+            return fArray;
+        }
+
         // Read Check ID
         private void setCheckID(BinaryReader bw)
         {
@@ -81,17 +134,12 @@ namespace KA3D_Tools
             Scene_Parameters scene_param = new Scene_Parameters();
             scene_param.fogType = (bw.ReadByte() == 1 ? "linear" : "none");
 
-            scene_param.fogStart = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
-                                          (bw.ReadByte() << 8) + bw.ReadByte();
-
-            scene_param.fogEnd = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                        (bw.ReadByte() << 8) + bw.ReadByte();
+            scene_param.fogStart = readSingleBigEndian(bw);
+            scene_param.fogEnd = readSingleBigEndian(bw);
 
             scene_param.fogColour = new float[3];
-            for (int i = 0; i < 3; ++i)
-            {
-                scene_param.fogColour[i] = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                           (bw.ReadByte() << 8) + bw.ReadByte(); // Google conversion reveals a minor error in conversion
+            for (int i = 0; i < 3; ++i){
+                scene_param.fogColour[i] = readSingleBigEndian(bw); // Google conversion reveals a minor error in conversion
             }
             return scene_param;
         }
@@ -106,11 +154,10 @@ namespace KA3D_Tools
             {
                 Texture tex = new Texture();
                 int size = (bw.ReadByte() << 8) + bw.ReadByte();
-                foreach (char ch in bw.ReadChars(size))
-                {
+                foreach (char ch in bw.ReadChars(size)) {
                     tex.fileName += ch;
                 }
-                int type = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+                int type = readIntBigEndian(bw);
                 tex.fileType = (type == 1 ? "cubemap" : "texture");
                 hgrData.textures[i] = tex;
             }
@@ -138,7 +185,7 @@ namespace KA3D_Tools
             }
             float[] value = new float[4];
             for (int i = 0; i < 4; i++) {
-                value[i] = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+                value[i] = readSingleBigEndian(bw);
             }
             vec4Param.value = value;
 
@@ -152,7 +199,7 @@ namespace KA3D_Tools
             {
                 fparam.parameterType += ch;
             }
-            fparam.value = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) + (bw.ReadByte() << 8) + bw.ReadByte();
+            fparam.value = readSingleBigEndian(bw);
 
             return fparam;
         }
@@ -206,15 +253,9 @@ namespace KA3D_Tools
         private VertexArray readVertexArray(BinaryReader bw, string df, UInt32 vertices)
         {
             VertexArray vArray = new VertexArray();
-            vArray.scale = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                           (bw.ReadByte() << 8) + bw.ReadByte();
-            vArray.bias = new Utilities.float4();
-            vArray.bias.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                            (bw.ReadByte() << 8) + bw.ReadByte();
-            vArray.bias.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                            (bw.ReadByte() << 8) + bw.ReadByte();
-            vArray.bias.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                            (bw.ReadByte() << 8) + bw.ReadByte();
+            vArray.scale = readSingleBigEndian(bw);
+
+            vArray.bias = readFloat3(bw);
 
             vArray.vert0 = new Utilities.float4[vertices];
             switch (df)
@@ -309,8 +350,8 @@ namespace KA3D_Tools
                 prim.indices = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                                                  (bw.ReadByte() << 8) + bw.ReadByte());
                 prim.vFormat = readVertexFormat(bw);
-                prim.materialIndex = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
-                prim.primitiveType = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte()); // Refer PrimType in Useless
+                prim.materialIndex = bw.ReadUInt16();
+                prim.primitiveType = bw.ReadUInt16(); // Refer PrimType in Useless
 
                 prim.vertexArray = new VertexArray[prim.vFormat.vertexComponenetCount];
                 for (UInt32 j = 0; j<prim.vFormat.vertexComponenetCount; ++j)
@@ -321,7 +362,7 @@ namespace KA3D_Tools
                 prim.indexData = new UInt16[prim.indices];
                 for (UInt32 j = 0; j < prim.indices; ++j)
                 {
-                    prim.indexData[j] = Convert.ToUInt16((bw.ReadByte() << 8) + bw.ReadByte());
+                    prim.indexData[j] = bw.ReadUInt16();
                 }
 
                 prim.usedBoneCount = bw.ReadByte();
@@ -348,10 +389,11 @@ namespace KA3D_Tools
             node.modeltm = new Utilities.float3x4();
 
             node.modeltm.a = new Utilities.float4();
-            node.modeltm.a.x = bw.ReadSingle();
-            node.modeltm.a.y = bw.ReadSingle();
-            node.modeltm.a.z = bw.ReadSingle();
-            node.modeltm.a.w = bw.ReadSingle();
+            node.modeltm.a.x = readSingleBigEndian(bw);
+            node.modeltm.a.y = readSingleBigEndian(bw);
+            node.modeltm.a.z = readSingleBigEndian(bw);
+            node.modeltm.a.w = readSingleBigEndian(bw);
+            //node.modeltm.a.x = bw.ReadSingle();
             //node.modeltm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
             //                   (bw.ReadByte() << 8) + bw.ReadByte();
             //node.modeltm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
@@ -362,24 +404,24 @@ namespace KA3D_Tools
             //                   (bw.ReadByte() << 8) + bw.ReadByte();
 
             node.modeltm.b = new Utilities.float4();
-            node.modeltm.b.x = bw.ReadSingle();
-            node.modeltm.b.y = bw.ReadSingle();
-            node.modeltm.b.z = bw.ReadSingle();
-            node.modeltm.b.w = bw.ReadSingle();
+            node.modeltm.b.x = readSingleBigEndian(bw);
+            node.modeltm.b.y = readSingleBigEndian(bw);
+            node.modeltm.b.z = readSingleBigEndian(bw);
+            node.modeltm.b.w = readSingleBigEndian(bw);
 
             node.modeltm.c = new Utilities.float4();
-            node.modeltm.c.x = bw.ReadSingle();
-            node.modeltm.c.y = bw.ReadSingle();
-            node.modeltm.c.z = bw.ReadSingle();
-            node.modeltm.c.w = bw.ReadSingle();
+            node.modeltm.c.x = readSingleBigEndian(bw);
+            node.modeltm.c.y = readSingleBigEndian(bw);
+            node.modeltm.c.z = readSingleBigEndian(bw);
+            node.modeltm.c.w = readSingleBigEndian(bw);
 
             node.nodeFlags = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                                               (bw.ReadByte() << 8) + bw.ReadByte());
 
             // Some unidentified data of size 4 bytes
-            node.uid = bw.ReadInt32();
+            node.uid = readIntBigEndian(bw);
 
-            node.parentIndex = bw.ReadInt32();
+            node.parentIndex = readIntBigEndian(bw);
 
             return node;
         }
@@ -391,37 +433,7 @@ namespace KA3D_Tools
             meshBone.boneNodeIndex = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
                                                       (bw.ReadByte() << 8) + bw.ReadByte());
 
-            meshBone.invresttm = new Utilities.float3x4();
-
-            meshBone.invresttm.a = new Utilities.float4();
-            meshBone.invresttm.a.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.a.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.a.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.a.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-
-            meshBone.invresttm.b = new Utilities.float4();
-            meshBone.invresttm.b.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.b.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.b.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.b.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-
-            meshBone.invresttm.c = new Utilities.float4();
-            meshBone.invresttm.c.x = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.c.y = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.c.z = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
-            meshBone.invresttm.c.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                     (bw.ReadByte() << 8) + bw.ReadByte();
+            meshBone.invresttm = readFloat3x4(bw);
 
             return meshBone;
         }
@@ -483,9 +495,8 @@ namespace KA3D_Tools
             var file = File.Open(filePath, FileMode.Open, FileAccess.Read);
             HGR_Data hgrData = new HGR_Data();
             hgrData.header = new HGR_Header();
-            using (var bw = new BinaryReader(file))
-            using (var br = new BinaryReader(file, System.Text.Encoding.BigEndianUnicode)) {
-                Debug.Assert(string.Concat(bw.ReadChars(4)) == "hgrf"); br.ReadChars(4);
+            using (var bw = new BinaryReader(file)){
+                Debug.Assert(string.Concat(bw.ReadChars(4)) == "hgrf");
                 readHeader(bw, hgrData.header);
                 hgrData.sceneParam = readSceneParameters(bw);
 
