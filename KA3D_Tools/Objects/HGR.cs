@@ -164,8 +164,7 @@ namespace KA3D_Tools
 
         private void readTextureData(BinaryReader bw, HGR_Data hgrData)
         {
-            hgrData.textureCount = Convert.ToUInt32((bw.ReadByte() << 24) + (bw.ReadByte() << 16) + 
-                                                    (bw.ReadByte() << 8) + bw.ReadByte());
+            hgrData.textureCount = readUInt32BigEndian(bw);
             hgrData.textures = new Texture[hgrData.textureCount];
 
             for (UInt32 i = 0; i < hgrData.textureCount; i++)
@@ -282,7 +281,7 @@ namespace KA3D_Tools
                     for (int i = 0; i < vertices; ++i)
                     {
                         vArray.vert0[i] = new Utilities.float4();
-                        vArray.vert0[i].x = BitConverter.ToSingle(bw.ReadBytes(2), 0);
+                        vArray.vert0[i].x = readSingle16(bw);
                     }
                     break;
 
@@ -290,8 +289,8 @@ namespace KA3D_Tools
                     for (int i = 0; i < vertices; ++i)
                     {
                         vArray.vert0[i] = new Utilities.float4();
-                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
-                        vArray.vert0[i].y = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].x = readSingle16(bw);
+                        vArray.vert0[i].y = readSingle16(bw);
                     }
                     break;
 
@@ -306,15 +305,14 @@ namespace KA3D_Tools
                     break;
 
                 case "DF_V4_16":
-                    vArray.bias.w = (bw.ReadByte() << 24) + (bw.ReadByte() << 16) +
-                                    (bw.ReadByte() << 8) + bw.ReadByte();
+                    vArray.bias.w = readSingleBigEndian(bw);
                     for (int i = 0; i < vertices; ++i)
                     {
                         vArray.vert0[i] = new Utilities.float4();
-                        vArray.vert0[i].x = (bw.ReadByte() << 8) + bw.ReadByte();
-                        vArray.vert0[i].y = (bw.ReadByte() << 8) + bw.ReadByte();
-                        vArray.vert0[i].z = (bw.ReadByte() << 8) + bw.ReadByte();
-                        vArray.vert0[i].w = (bw.ReadByte() << 8) + bw.ReadByte();
+                        vArray.vert0[i].x = readSingle16(bw);
+                        vArray.vert0[i].y = readSingle16(bw);
+                        vArray.vert0[i].z = readSingle16(bw);
+                        vArray.vert0[i].w = readSingle16(bw);
                     }
                     break;
 
@@ -523,6 +521,7 @@ namespace KA3D_Tools
                 //user properties
 
                 Exporter x = new Exporter();
+                x.inputPath = filePath;
                 x.StoreHGR(hgrData);
             }
         }

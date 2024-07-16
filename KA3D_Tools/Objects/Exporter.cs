@@ -15,6 +15,7 @@ namespace KA3D_Tools
     {
         private AssimpC.Scene baseHGR;
         public ExportFormatDescription[] formatIds;
+        public string inputPath;
 
         private Matrix4x4 copyTransform(Utilities.float3x4 modelTm)
 
@@ -189,18 +190,18 @@ namespace KA3D_Tools
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
+            var SelectedFormat = formatIds[1];
+
             // Now, Export works with root node. Also, now in a try...catch block if any error occurs while writing file.
-            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "bounce.dae");
-            bool test = false;
+            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), (Path.GetFileName(inputPath)+SelectedFormat.FileExtension));
             try
             {
-                test = assimpExporter.ExportFile(scene, outputPath, formatIds[0].FormatId, PostProcessSteps.None);
+                assimpExporter.ExportFile(scene, outputPath, SelectedFormat.FormatId, PostProcessSteps.FindInvalidData);
             }
             catch(Exception ex)
             {
                 Debug.WriteLine(ex.Message);
             }
-            test = false;
         }
     }
 }
