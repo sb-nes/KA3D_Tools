@@ -80,14 +80,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Objects\AssimpC\Camera.cs" />
-    <Compile Include="Objects\AssimpC\Face.cs" />
-    <Compile Include="Objects\AssimpC\Light.cs" />
-    <Compile Include="Objects\AssimpC\Material.cs" />
-    <Compile Include="Objects\AssimpC\Mesh.cs" />
-    <Compile Include="Objects\AssimpC\Node.cs" />
-    <Compile Include="Objects\AssimpC\NodeCollection.cs" />
-    <Compile Include="Objects\AssimpC\Scene.cs" />
     <Compile Include="Objects\Exporter.cs" />
     <Compile Include="Utilities\MathUtil.cs" />
     <Page Include="Dictionaries\ColourPalette.xaml">
