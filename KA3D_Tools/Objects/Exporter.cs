@@ -190,7 +190,7 @@ namespace KA3D_Tools
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
-            var SelectedFormat = formatIds[1];
+            var SelectedFormat = formatIds[0];
 
             // Now, Export works with root node. Also, now in a try...catch block if any error occurs while writing file.
             String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), (Path.GetFileName(inputPath)+SelectedFormat.FileExtension));
