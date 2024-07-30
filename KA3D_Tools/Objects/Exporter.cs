@@ -37,7 +37,7 @@ namespace KA3D_Tools
                 AssimpC.Node item = new AssimpC.Node();
 
                 item.Name = hgrData.meshes[i].node.name;
-                item.Children = new AssimpC.NodeCollection(item);
+                //item.Children = new AssimpC.NodeCollection(item);
                 item.Transform = copyTransform(hgrData.meshes[i].node.modeltm);
 
                 foreach (var index in hgrData.meshes[i].primitiveIndices) {
@@ -92,19 +92,24 @@ namespace KA3D_Tools
                     mesh.Vertices = new List<Vector3D>(); 
                     foreach (var vertData in temp[0].vert0) // Vertices
                     {
-                        var vert = new Vector3D(vertData.x, vertData.y, vertData.z);
+                        var vert = new Vector3D((vertData.x * temp[0].scale) + temp[0].bias.x, 
+                                                (vertData.y * temp[0].scale) + temp[0].bias.y, 
+                                                (vertData.z * temp[0].scale) + +temp[0].bias.z);
                         mesh.Vertices.Add(vert);
                     }
+                    Debug.Assert(mesh.VertexCount == verts);
 
                     mesh.TextureCoordinateChannels = new List<Vector3D>[1]; //Channel 0 is default for UV
                     mesh.TextureCoordinateChannels[0] = new List<Vector3D>();
-
+                    
                     foreach (var vertData in temp[1].vert0) // Tex_Coords
                     {
-                        var vert = new Vector3D(vertData.x, vertData.y, 0);
+                        var vert = new Vector3D((vertData.x * temp[1].scale) + temp[1].bias.x, 
+                                                (vertData.y * temp[1].scale) + temp[1].bias.y, 
+                                                0);
                         mesh.TextureCoordinateChannels[0].Add(vert);
                     }
-
+                    
                     mesh.Faces = new List<AssimpC.Face>(); // Faces / Indices
                     switch (mesh.PrimitiveType)
                     {
@@ -128,6 +133,7 @@ namespace KA3D_Tools
 
                     meshes.Add(mesh);
                 }
+                mesh.UVComponentCount[0] = 2;
             }
 
             return meshes;
@@ -177,31 +183,30 @@ namespace KA3D_Tools
             baseHGR.Meshes = StoreMesh(hgrData);
 
             IntPtr unData = AssimpC.Scene.ToUnmanagedScene(baseHGR);
-            ExportFBXScene(unData);
+            baseHGR = null;
+            Scene y = unmanagedToManaged(unData);
+            ExportFBXScene(y);
         }
 
-        private void ExportFBXScene(IntPtr unmanagedData)
+        public Scene unmanagedToManaged(IntPtr unmanagedData)
+        {
+            return Scene.FromUnmanagedScene(unmanagedData);
+            // FromUnmanagedScene (IntPtr) to ManagedScene
+        }
+
+        private void ExportFBXScene(Scene scene)
         {
             AssimpContext assimpExporter = new AssimpContext();
-            string[] formatsIn = assimpExporter.GetSupportedImportFormats();
             formatIds = assimpExporter.GetSupportedExportFormats();
-            Scene scene = Scene.FromUnmanagedScene(unmanagedData); // FromUnmanagedScene (IntPtr) to ManagedScene
 
             FileIOSystem ioSystem = new FileIOSystem(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
             assimpExporter.SetIOSystem(ioSystem);
 
-            var SelectedFormat = formatIds[1];
+            var SelectedFormat = formatIds[3];
 
-            // Now, Export works with root node. Also, now in a try...catch block if any error occurs while writing file.
-            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), (Path.GetFileName(inputPath)+SelectedFormat.FileExtension));
-            try
-            {
-                assimpExporter.ExportFile(scene, outputPath, SelectedFormat.FormatId, PostProcessSteps.FindInvalidData);
-            }
-            catch(Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-            }
+            String outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), (Path.GetFileName(inputPath)+"."+SelectedFormat.FileExtension));
+            
+            assimpExporter.ExportFile(scene, outputPath, SelectedFormat.FormatId);
         }
     }
 }
