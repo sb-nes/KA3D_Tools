@@ -522,7 +522,7 @@ namespace KA3D_Tools
 
                 Exporter x = new Exporter();
                 x.inputPath = filePath;
-                x.StoreHGR(hgrData);
+                x.StoreHGR();
             }
         }
     }

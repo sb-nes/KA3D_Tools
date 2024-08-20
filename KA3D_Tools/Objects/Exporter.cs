@@ -10,13 +10,13 @@ namespace KA3D_Tools
     class Exporter
     {
         public string inputPath;
-        private const string _hgrDll = "HGR_RW.dll";
+        private const string _contentTool = "ContentTool.dll";
 
-        [DllImport(_hgrDll, CharSet = CharSet.Ansi)]
-        public static extern void ReadHGR();
+        [DllImport(_contentTool, CharSet = CharSet.Ansi)]
+        public static extern bool ReadData();
 
         public void StoreHGR() {
-            ReadHGR();
+            ReadData();
         }
     }
 }
