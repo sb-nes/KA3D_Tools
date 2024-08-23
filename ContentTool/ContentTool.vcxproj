@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="FBXExporter.cpp" />
+    <ClCompile Include="HGR\HGR.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\Math.h" />
