@@ -163,6 +163,7 @@
     <ClCompile Include="FBXExporter.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common\Math.h" />
     <ClInclude Include="Common\PrimitiveTypes.h" />
     <ClInclude Include="HGR\Entity.h" />
     <ClInclude Include="FBXExporter.h" />

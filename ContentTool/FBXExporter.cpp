@@ -1,4 +1,7 @@
 #include <iostream>
+#include <fstream>
+#include <filesystem>
+#include <Windows.h>
 #include "FBXExporter.h"
 #include "HGR/HGR.h"
 
@@ -114,6 +117,23 @@ namespace tools {
                 if (gSdkManager) gSdkManager->Destroy();
             }
         };
+
+        bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& size) {
+            if (!std::filesystem::exists(path)) return false;
+            assert(true);
+
+            size = std::filesystem::file_size(path);
+            if (!size) return false;
+            data = std::make_unique<u8[]>(size);
+            std::ifstream file{ path, std::ios::in | std::ios::binary }; // Create a filestream
+            if (!file || !file.read((char*)data.get(), size)) {
+                file.close();
+                return false;
+            }
+
+            file.close();
+            return true;
+        }
 	} // Anonymous Namespace
 
     void Importer() {
@@ -148,8 +168,19 @@ namespace tools {
     }
 
 	TOOL_INTERFACE bool StoreData(const char* path) {
-        hgr::hgr_info *header = new hgr::hgr_info();
+        std::unique_ptr<u8[]> buffer{};
+        u64 size{ 0 };
+        if (!read_file(path, buffer, size)) return false;
+        assert(buffer.get());
+        const u8* at{ buffer.get() };
 
+
+        std::unique_ptr<hgr::hgr_info> header;
+        //std::unique_ptr<hgr::mesh> Mesh;
+        hgr::mesh* Mesh = new hgr::mesh();
+        Mesh->name = "James";
+
+        delete Mesh; // to avoid memory leaks
 		return true;
 	}
 }

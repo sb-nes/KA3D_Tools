@@ -1,5 +1,5 @@
 #pragma once
-#include "Common/PrimitiveTypes.h"
+#include "../Common/PrimitiveTypes.h"
 #include <string.h>
 
 namespace tools::hgr {

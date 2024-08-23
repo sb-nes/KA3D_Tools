@@ -11,5 +11,6 @@
     <ClInclude Include="Common\PrimitiveTypes.h" />
     <ClInclude Include="HGR\Entity.h" />
     <ClInclude Include="HGR\HGRCommon.h" />
+    <ClInclude Include="Common\Math.h" />
   </ItemGroup>
 </Project>
