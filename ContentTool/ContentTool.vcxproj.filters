@@ -7,5 +7,9 @@
   <ItemGroup>
     <ClInclude Include="ToolCommon.h" />
     <ClInclude Include="FBXExporter.h" />
+    <ClInclude Include="HGR\HGR.h" />
+    <ClInclude Include="Common\PrimitiveTypes.h" />
+    <ClInclude Include="HGR\Entity.h" />
+    <ClInclude Include="HGR\HGRCommon.h" />
   </ItemGroup>
 </Project>

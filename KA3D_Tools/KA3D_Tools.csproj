@@ -77,7 +77,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Objects\Exporter.cs" />
+    <Compile Include="Objects\ContentToolAPI.cs" />
     <Compile Include="Utilities\MathUtil.cs" />
     <Page Include="Dictionaries\ColourPalette.xaml">
       <SubType>Designer</SubType>

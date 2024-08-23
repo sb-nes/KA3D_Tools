@@ -520,9 +520,9 @@ namespace KA3D_Tools
 
                 //user properties
 
-                Exporter x = new Exporter();
-                x.inputPath = filePath;
-                x.StoreHGR();
+                //Exporter x = new Exporter();
+                //x.inputPath = filePath;
+                //x.StoreHGR();
             }
         }
     }
