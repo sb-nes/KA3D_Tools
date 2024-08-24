@@ -68,10 +68,12 @@ namespace tools::hgr {
 	};
 
 	static std::map<std::string, dataFormats> dfMap{ // std::map::operator[] is a non-const member function; Therefore, i can't make it const.
-		{"DF_S_16", dataFormats::DF_S_16}, // int8
-		{"DF_V2_16", dataFormats::DF_V2_16}, // int8[2]
-		{"DF_V3_16", dataFormats::DF_V3_16}, // int8[3]
-		{"DF_V4_16", dataFormats::DF_V4_16}, // int8[4]
+		{"DF_S_16", dataFormats::DF_S_16}, // int16
+		{"DF_V2_16", dataFormats::DF_V2_16}, // int16[2]
+		{"DF_V3_16", dataFormats::DF_V3_16}, // int16[3]
+		{"DF_V4_16", dataFormats::DF_V4_16}, // int16[4]
+		{"DF_V3_32", dataFormats::DF_V3_32}, // float32[3]
+		{"DF_V4_32", dataFormats::DF_V4_32}, // float32[4]
 	};
 
 	enum DataType

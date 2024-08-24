@@ -119,4 +119,18 @@ namespace tools::hgr {
 		/** Default type flags for Node. */
 		NODE_DEFAULTS = NODE_ENABLED || NODE_OTHER,
 	};
+
+	enum BehaviourType
+	{
+		/** Animation loops to start after reaching end. */
+		BEHAVIOUR_REPEAT,
+		/** Animation changes direction at the ends. */
+		BEHAVIOUR_OSCILLATE,
+		/** Animation resets to start frame at the end. */
+		BEHAVIOUR_RESET,
+		/** Animation stops at the last frame. */
+		BEHAVIOUR_STOP,
+		/** Number of supported behaviours. */
+		BEHAVIOUR_COUNT
+	};
 }

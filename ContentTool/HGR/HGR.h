@@ -77,6 +77,11 @@ namespace tools::hgr {
 		u32					size{};
 	};
 
+	struct float3Animation {
+		s32					keyCount{};
+		f32*				keys{};
+	};
+
 	struct transformAnimation {
 		std::string			nodeName{};
 		u8					posKeyRate{}; // position
@@ -87,6 +92,8 @@ namespace tools::hgr {
 		keyframeSequence*	posKeyData{};
 		keyframeSequence*	rotKeyData{};
 		keyframeSequence*	sclKeyData{};
+
+		f32					endTime{ 0.f }; // added in version 193
 	};
 
 	struct userProperty {
@@ -101,5 +108,41 @@ namespace tools::hgr {
 		//	Particle = "fire"
 		//	Time = 3
 		//	Particle = "snow"
+	};
+
+	enum PlatformName {
+		dx,
+		egl,
+		psp,
+		sw,
+		n3d,
+	};
+
+	enum PlatformDesc {
+		DirectX_9_x,
+		OpenGL_ES,
+		PlayStation_Portable,
+		Software_Renderer,
+		Nokia_N3D,
+	};
+
+	enum DataFlags {
+		DATA_MATERIALS = 1,
+		DATA_PRIMITIVES = 2,
+		DATA_NODES = 4,
+		DATA_ANIMATIONS = 8,
+		DATA_USERPROPERTIES = 16,
+
+	};
+
+	enum PrimitiveType {
+		PRIM_POINT = 0,
+		PRIM_LINE = 1,
+		PRIM_LINESTRIP = 2,
+		PRIM_TRI = 3,
+		PRIM_TRISTRIP = 4,
+		PRIM_TRIFAN = 5,
+		PRIM_SPRITE = 6,
+		PRIM_INVALID = 7
 	};
 }

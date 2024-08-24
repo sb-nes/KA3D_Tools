@@ -2,6 +2,8 @@
 
 #include <assert.h>
 
+#define LITTLE_ENDIAN
+
 #ifndef TOOL_INTERFACE
 #define TOOL_INTERFACE extern "C" __declspec(dllexport)
 #endif // !EDITOR_INTERFACE
@@ -23,3 +25,9 @@ T swap_endian(T u) {
 
     return dest.u;
 }
+
+#ifdef LITTLE_ENDIAN
+#define SWAP(x, TYPE) x = swap_endian<TYPE>(x) // ENABLED CODE
+#else
+#define SWAP(x, TYPE) //DISABLED CODE
+#endif // LITTLE_ENDIAN
