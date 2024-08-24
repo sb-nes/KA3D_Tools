@@ -73,7 +73,8 @@ namespace tools::hgr {
 		std::string			dataFormat{};
 		f32					scale{};
 		f32					bias[4]{};
-		f32*				value{};
+		f32*				keys{};
+		u32					size{};
 	};
 
 	struct transformAnimation {
@@ -83,9 +84,9 @@ namespace tools::hgr {
 		u8					sclKeyRate{}; // scale
 		u8					endBehaviour{};
 
-		keyframeSequence	posKeyData{};
-		keyframeSequence	rotKeyData{};
-		keyframeSequence	sclKeyData{};
+		keyframeSequence*	posKeyData{};
+		keyframeSequence*	rotKeyData{};
+		keyframeSequence*	sclKeyData{};
 	};
 
 	struct userProperty {

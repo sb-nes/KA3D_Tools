@@ -421,6 +421,61 @@ namespace tools::hgr {
             return true;
         }
 
+        bool read_buffer(const u8*& at, keyframeSequence& info) {
+            u32 size{ 0 };
+            memcpy(&(info.keyCount), at, su32); at += su32; info.keyCount = swap_endian<s32>(info.keyCount);
+
+            memcpy(&size, at, su16); at += su16; size = swap_endian<u16>(size);
+            info.dataFormat.assign(at, at + size); at += size; // format without "DF_" prefix
+            info.dataFormat = "DF_" + info.dataFormat;
+
+            u32 length{ 0 };
+
+            switch (dfMap[info.dataFormat]) { // i think i should build a different class for this.
+            case DF_S_16:
+                size = info.keyCount;
+                length = su16;
+                break;
+            
+            case DF_V2_16:
+                size = info.keyCount * 2;
+                length = su16;
+                break;
+            
+            case DF_V3_16:
+                size = info.keyCount * 3;
+                length = su16;
+                break;
+            
+            case DF_V4_16:
+                size = info.keyCount * 4;
+                length = su16;
+                break;
+            
+            default:
+                assert(false && "Unimplemented type: Go into Debugger Mode to check the format!");
+                return false;
+            }
+
+            memcpy(&(info.scale), at, su32); at += su32;
+            info.scale = swap_endian<f32>(info.scale);
+            memcpy(&(info.bias), at, su32 * 3); at += su32 * 3;
+
+            for (int j{ 0 };j < 3;++j) {
+                info.bias[j] = swap_endian<f32>(info.bias[j]);
+            }
+
+            info.keys = new f32[size];
+
+            memcpy(info.keys, at, size * length); at += size * length;
+            for (u32 j{ 0 };j < size;++j) {
+                info.keys[j] = swap_endian<s16>(info.keys[j]); // is it supposed to be little or big endian?
+            }
+            info.size = size;
+
+            return true;
+        }
+
         bool read_buffer(const u8*& at, transformAnimation*& info, u32& count) {
             u16 size{ 0 }; u32 j{ 0 };
             for (u32 i{ 0 };i < count;++i) {
@@ -431,6 +486,14 @@ namespace tools::hgr {
                 memcpy(&(info[i].rotKeyRate), at, 1); at += 1; info[i].rotKeyRate = swap_endian<u8>(info[i].rotKeyRate);
                 memcpy(&(info[i].sclKeyRate), at, 1); at += 1; info[i].sclKeyRate = swap_endian<u8>(info[i].sclKeyRate);
                 memcpy(&(info[i].endBehaviour), at, 1); at += 1; info[i].endBehaviour = swap_endian<u8>(info[i].endBehaviour);
+
+                info[i].posKeyData = new keyframeSequence();
+                info[i].rotKeyData = new keyframeSequence();
+                info[i].sclKeyData = new keyframeSequence();
+
+                read_buffer(at, *info[i].posKeyData);
+                read_buffer(at, *info[i].rotKeyData);
+                read_buffer(at, *info[i].sclKeyData);
             }
             return true;
         }
@@ -563,8 +626,15 @@ namespace tools::hgr {
 
         memcpy(&(entityInfo.TransformAnimation_Count), at, su32); at += su32;
         entityInfo.TransformAnimation_Count = swap_endian<u32>(entityInfo.TransformAnimation_Count);
+        transformAnimation* TransformAnimations;
+        if (entityInfo.TransformAnimation_Count > 0) {
+            TransformAnimations = new transformAnimation[entityInfo.TransformAnimation_Count];
+            for (u32 i{ 0 };i < entityInfo.TransformAnimation_Count; ++i) {
+                read_buffer(at, TransformAnimations, entityInfo.TransformAnimation_Count);
+            }
+        }
 
-        //check_id(at, *header);
+        check_id(at, *header);
 
         memcpy(&(entityInfo.UserProperties_Count), at, su32); at += su32;
         entityInfo.UserProperties_Count = swap_endian<u32>(entityInfo.UserProperties_Count);
