@@ -58,10 +58,11 @@ namespace tools::hgr {
 	struct primitive_info {
 		u32					verts{};
 		u32					indices{};
+		u8					formatCount{};
 		vertFormat*			formats{};
 		u16					matIndex{};
-		u16					primitiveIndex{};
-		vertArray*			VArray{};
+		u16					primitiveType{};
+		vertArray*			vArray{};
 		u16*				indexData{};
 		u8					usedBoneCount{};
 		u8*					usedBones{};
