@@ -117,6 +117,6 @@ namespace tools::hgr {
 		/** Set if Node's bounding volumes are stored in world space coordinates. */
 		NODE_BOUNDWORLDSPACE = (1 << 9),
 		/** Default type flags for Node. */
-		NODE_DEFAULTS = NODE_ENABLED + NODE_OTHER,
+		NODE_DEFAULTS = NODE_ENABLED || NODE_OTHER,
 	};
 }

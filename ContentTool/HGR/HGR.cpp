@@ -19,7 +19,7 @@ namespace tools::hgr {
         bool check_signature(const u8*& at) {
             // Check Signature
             char magic[4]; memcpy(magic, at, 4);
-            int z = memcmp(magic, "hgrfi", 4);
+            //int z = memcmp(magic, "hgrfi", 4);
             //if (str != "hgrf") return false; // Fails to check RN
             at += 5;
 
@@ -395,7 +395,7 @@ namespace tools::hgr {
 
         bool read_buffer(const u8*& at, shape*& info, u32& count) {
             node* Node = new node();
-            u32 j{ 0 };
+            s32 j{ 0 };
             for (u32 i{ 0 };i < count;++i) {
                 read_buffer(at, *Node);
                 // Assign Node Values
@@ -423,10 +423,11 @@ namespace tools::hgr {
 
         bool read_buffer(const u8*& at, keyframeSequence& info) {
             u32 size{ 0 };
+            u16 s{ 0 };
             memcpy(&(info.keyCount), at, su32); at += su32; info.keyCount = swap_endian<s32>(info.keyCount);
 
-            memcpy(&size, at, su16); at += su16; size = swap_endian<u16>(size);
-            info.dataFormat.assign(at, at + size); at += size; // format without "DF_" prefix
+            memcpy(&s, at, su16); at += su16; s = swap_endian<u16>(s);
+            info.dataFormat.assign(at, at + s); at += s; // format without "DF_" prefix
             info.dataFormat = "DF_" + info.dataFormat;
 
             u32 length{ 0 };
@@ -469,7 +470,7 @@ namespace tools::hgr {
 
             memcpy(info.keys, at, size * length); at += size * length;
             for (u32 j{ 0 };j < size;++j) {
-                info.keys[j] = swap_endian<s16>(info.keys[j]); // is it supposed to be little or big endian?
+                info.keys[j] = swap_endian<f32>(info.keys[j]); // is it supposed to be little or big endian?
             }
             info.size = size;
 
@@ -477,7 +478,7 @@ namespace tools::hgr {
         }
 
         bool read_buffer(const u8*& at, transformAnimation*& info, u32& count) {
-            u16 size{ 0 }; u32 j{ 0 };
+            u16 size{ 0 };
             for (u32 i{ 0 };i < count;++i) {
                 memcpy(&size, at, su16); at += su16; size = swap_endian<u16>(size);
                 info[i].nodeName.assign(at, at + size); at += size; // name
@@ -499,7 +500,7 @@ namespace tools::hgr {
         }
 
         bool read_buffer(const u8*& at, userProperty*& info, u32& count) {
-            u16 size{ 0 }; u32 j{ 0 };
+            u16 size{ 0 };
             for (u32 i{ 0 };i < count;++i) {
                 memcpy(&size, at, su16); at += su16; size = swap_endian<u16>(size);
                 info[i].nodeName.assign(at, at + size); at += size; // name
@@ -648,7 +649,21 @@ namespace tools::hgr {
         mesh* Mesh = new mesh();
         Mesh->name = "James";
 
-        //delete Mesh; // to avoid memory leaks
+        delete Mesh; // to avoid memory leaks
+        delete header;
+        delete sceneParams;
+        delete Textures;
+        delete Materials;
+        delete Primitives;
+        delete Meshes;
+        if (Cameras) delete Cameras;
+        if (Lights) delete Lights;
+        if (Dummies) delete Dummies;
+        if (Shapes) delete Shapes;
+        if (Nodes) delete Nodes;
+        if (TransformAnimations) delete TransformAnimations;
+        if (UserProperties) delete UserProperties;
+
         return true;
     }
 }
