@@ -40,9 +40,7 @@ namespace KA3D_Tools
                 // Code runs after selecting the file
                 Debug.Assert(!string.IsNullOrEmpty(dlg.FileName));
                 // read the file
-                var vm = DataContext as HGR;
-                vm.filePath = dlg.FileName;
-                vm.readHGR();
+                ContentToolAPI.StoreHGR(dlg.FileName);
             }
         }
     }
