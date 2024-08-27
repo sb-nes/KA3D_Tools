@@ -29,7 +29,12 @@ Colour Palette: Next in buffer of size 'Palette Size' from the header; It is an 
 Pixel Data: Remaining data in the buffer; Each Pixel contains the index for its colour to lookup in the colour palette.
 
 ### HGR
-???
+Hierarchical Graphics Rendering Pipeline
+refer to documentation here [link](https://github.com/pent0/ka3d/blob/master/docs/KA3D%20hgr%20file%20format.doc)
+
+It holds a vast collection of graphical objects and it's information in proprietary format, to be used with Kajala's(GamePixelgene) ka3d engine.
+
+
 
 ### changelog: a little error i made in v0.1
 
