@@ -2,7 +2,7 @@
 This app is a tool to convert KA3D/Fusion Engine assets back to their general format:
 
 1. .ntx -> Img/Tex -> .png/.jpg/.tiff
-2. .hgr -> Assets/Objects
+2. .hgr -> Assets/Objects -> .fbx [under progress]
 
 [NOTE: not all .hgr files (KA3D engine's gamedata, leveldata, prefabs, etc.) can be directly converted into existing files]
 
