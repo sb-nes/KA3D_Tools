@@ -34,6 +34,7 @@ namespace tools {
         class Exporter {
         public:
             FbxManager* gSdkManager = nullptr;
+
 #ifdef IOS_REF
 #undef  IOS_REF
 #define IOS_REF (*(gSdkManager->GetIOSettings()))
@@ -135,6 +136,31 @@ namespace tools {
                 lRootNode->AddChild(lCube);
 
                 return true;
+            }
+
+            bool CreateScene(FbxScene*& pScene, hgr::primitive_info* prim_info, hgr::entity_info* info) {
+                FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh A", prim_info[0]);
+
+                // Build the node tree.
+                FbxNode* lRootNode = pScene->GetRootNode();
+                lRootNode->AddChild(lMesh);
+
+                return true;
+            }
+
+            FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info) {
+                FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
+
+                prim_info.vArray[0].scale;
+
+                // Create Control Points from Vertices
+                for (u32 i{ 0 };i < prim_info.verts;++i) {
+
+                }
+
+                lMesh->InitControlPoints(prim_info.indices);
+
+                return nullptr;
             }
 
             // Mesh -> node
@@ -524,6 +550,18 @@ namespace tools {
 
         // The file is imported, so get rid of the importer.
         lImporter->Destroy();
+    }
+
+    void test(hgr::primitive_info* prim_info, hgr::entity_info* info) {
+        Exporter* ex = new Exporter();
+        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "myScene");
+
+        ex->CreateScene(gScene, prim_info, info);
+        ex->SaveScene(ex->gSdkManager, gScene, "TestHGRFile", 0);
+
+        // De-allocate memory
+        gScene->Destroy();
+        delete ex; // automatically calls the destructor
     }
 
     void test() {

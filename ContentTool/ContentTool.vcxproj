@@ -159,11 +159,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="HGR\VertexFormat.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="FBXExporter.cpp" />
     <ClCompile Include="HGR\HGR.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="HGR\VertexFormat.h" />
     <ClInclude Include="Common\Math.h" />
     <ClInclude Include="Common\PrimitiveTypes.h" />
     <ClInclude Include="Engine\Platform.h" />

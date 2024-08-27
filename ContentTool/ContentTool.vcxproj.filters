@@ -4,6 +4,7 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="FBXExporter.cpp" />
     <ClCompile Include="HGR\HGR.cpp" />
+    <ClCompile Include="HGR\VertexFormat.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ToolCommon.h" />
@@ -15,5 +16,6 @@
     <ClInclude Include="Common\Math.h" />
     <ClInclude Include="Engine\Platform.h" />
     <ClInclude Include="HGR\Mesh.h" />
+    <ClInclude Include="HGR\VertexFormat.h" />
   </ItemGroup>
 </Project>

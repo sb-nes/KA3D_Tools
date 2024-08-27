@@ -153,7 +153,7 @@ namespace tools::hgr {
                 memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].format.assign(at, at + size); at += size; // format without "DF_" prefix
-                info[i].format = "DF_" + info[i].format;
+                //info[i].format = "DF_" + info[i].format;
             }
             return true;
         }
@@ -162,31 +162,11 @@ namespace tools::hgr {
             u32 size{ 0 };
             u32 length{ 0 };
             for (int i{ 0 };i < count;++i) {
-                switch (dfMap[formats[i].format]) {
-                case DF_S_16:
-                    size = verts;
-                    length = su16;
-                    break;
 
-                case DF_V2_16:
-                    size = verts * 2;
-                    length = su16;
-                    break;
-
-                case DF_V3_16:
-                    size = verts * 3;
-                    length = su16;
-                    break;
-
-                case DF_V4_16:
-                    size = verts * 4;
-                    length = su16;
-                    break;
-
-                default:
-                    assert(false && "Unimplemented type: Go into Debugger Mode to check the format!");
-                    return false;
-                }
+                size = VertexFormat::getDataDim(VertexFormat::toDataFormat( formats[i].format.c_str() ));
+                length = VertexFormat::getDataSize(VertexFormat::toDataFormat(formats[i].format.c_str()));
+                length /= size;
+                size *= verts;
 
                 memcpy(&(info[i].scale), at, su32); at += su32;
                 SWAP(info[i].scale, f32);
@@ -481,7 +461,6 @@ namespace tools::hgr {
             if (version < 192) {
                 memcpy(&s, at, su16); at += su16; s = swap_endian<u16>(s);
                 info.dataFormat.assign(at, at + s); at += s; // format without "DF_" prefix
-                info.dataFormat = "DF_" + info.dataFormat;
 
                 memcpy(&(info.scale), at, su32); at += su32;
                 info.scale = swap_endian<f32>(info.scale);
@@ -491,31 +470,10 @@ namespace tools::hgr {
                     info.bias[j] = swap_endian<f32>(info.bias[j]);
                 }
 
-                switch (dfMap[info.dataFormat]) { // i think i should build a different class for this.
-                case DF_S_16:
-                    size = info.keyCount;
-                    length = su16;
-                    break;
-
-                case DF_V2_16:
-                    size = info.keyCount * 2;
-                    length = su16;
-                    break;
-
-                case DF_V3_16:
-                    size = info.keyCount * 3;
-                    length = su16;
-                    break;
-
-                case DF_V4_16:
-                    size = info.keyCount * 4;
-                    length = su16;
-                    break;
-
-                default:
-                    assert(false && "Unimplemented type: Go into Debugger Mode to check the format!");
-                    return false;
-                }
+                size = VertexFormat::getDataDim(VertexFormat::toDataFormat(info.dataFormat.c_str()));
+                length = VertexFormat::getDataSize(VertexFormat::toDataFormat(info.dataFormat.c_str()));
+                length /= size;
+                size *= info.keyCount;
 
                 info.keys = new f32[size];
 
