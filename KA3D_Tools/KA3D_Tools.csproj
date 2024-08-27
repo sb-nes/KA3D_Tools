@@ -115,9 +115,6 @@
     <Compile Include="Objects\HGREditor.xaml.cs">
       <DependentUpon>HGREditor.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Objects\Nodes.cs" />
-    <Compile Include="Objects\Object.cs" />
-    <Compile Include="Objects\Useless.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

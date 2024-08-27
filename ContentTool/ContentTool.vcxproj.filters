@@ -13,5 +13,7 @@
     <ClInclude Include="HGR\Entity.h" />
     <ClInclude Include="HGR\HGRCommon.h" />
     <ClInclude Include="Common\Math.h" />
+    <ClInclude Include="Engine\Platform.h" />
+    <ClInclude Include="HGR\Mesh.h" />
   </ItemGroup>
 </Project>

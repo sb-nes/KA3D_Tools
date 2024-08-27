@@ -166,10 +166,12 @@
   <ItemGroup>
     <ClInclude Include="Common\Math.h" />
     <ClInclude Include="Common\PrimitiveTypes.h" />
+    <ClInclude Include="Engine\Platform.h" />
     <ClInclude Include="HGR\Entity.h" />
     <ClInclude Include="FBXExporter.h" />
     <ClInclude Include="HGR\HGR.h" />
     <ClInclude Include="HGR\HGRCommon.h" />
+    <ClInclude Include="HGR\Mesh.h" />
     <ClInclude Include="ToolCommon.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

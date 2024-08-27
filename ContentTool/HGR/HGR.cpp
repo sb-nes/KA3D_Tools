@@ -6,6 +6,7 @@
 #include "HGR.h"
 #include "../ToolCommon.h"
 #include "Entity.h"
+#include "../FBXExporter.h"
 
 #define MAX_TEXCOORDS = 4 
 
@@ -328,6 +329,8 @@ namespace tools::hgr {
                     }
                 }
             }
+
+            delete Node;
             return true;
         }
 
@@ -563,17 +566,18 @@ namespace tools::hgr {
                 assert(info[i].endBehaviour < BehaviourType::BEHAVIOUR_COUNT);
 
                 // not listed in the hgr file format documentation
-                bool isOptimized = false;
-                if (version >= 192) memcpy(&isOptimized, at, 1); at += 1;
+                if (version >= 192) memcpy(&info->isOptimized, at, 1); at += 1;
 
-                if (!isOptimized) {
-                    info[i].posKeyData = new keyframeSequence();
+                if (!info->isOptimized) {
+                    // not implementing rn
+
+                    //info[i].posKeyData = new keyframeSequence();
                     info[i].rotKeyData = new keyframeSequence();
-                    info[i].sclKeyData = new keyframeSequence();
+                    //info[i].sclKeyData = new keyframeSequence();
 
-                    read_buffer(at, *info[i].posKeyData);
+                    //read_buffer(at, *info[i].posKeyData);
                     read_buffer(at, *info[i].rotKeyData);
-                    read_buffer(at, *info[i].sclKeyData);
+                    //read_buffer(at, *info[i].sclKeyData);
                 } else { // New Implementation
 
                     info[i].rotKeyData = new keyframeSequence(); // Only this remains same
@@ -643,32 +647,33 @@ namespace tools::hgr {
         SWAP(header->check_id, u32);
 
         entity_info entityInfo{};
+
         memcpy(&(entityInfo.Texture_Count), at, su32); at += su32; 
         entityInfo.Texture_Count = swap_endian<u32>(entityInfo.Texture_Count);
         texture_info* Textures = new texture_info[entityInfo.Texture_Count];
         read_buffer(at, Textures, entityInfo.Texture_Count);
-
+        
         memcpy(&(entityInfo.Material_Count), at, su32); at += su32;
         entityInfo.Material_Count = swap_endian<u32>(entityInfo.Material_Count);
         material_info* Materials = new material_info[entityInfo.Material_Count];
         read_buffer(at, Materials, entityInfo.Material_Count);
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Primitive_Count), at, su32); at += su32;
         entityInfo.Primitive_Count = swap_endian<u32>(entityInfo.Primitive_Count);
         primitive_info* Primitives = new primitive_info[entityInfo.Primitive_Count];
         read_buffer(at, Primitives, entityInfo.Primitive_Count);
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Mesh_Count), at, su32); at += su32;
         entityInfo.Mesh_Count = swap_endian<u32>(entityInfo.Mesh_Count);
         mesh* Meshes = new mesh[entityInfo.Mesh_Count];
         read_buffer(at, Meshes, entityInfo.Mesh_Count);
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Camera_Count), at, su32); at += su32;
         entityInfo.Camera_Count = swap_endian<u32>(entityInfo.Camera_Count);
         camera* Cameras = new camera[entityInfo.Camera_Count];
@@ -677,34 +682,34 @@ namespace tools::hgr {
         }
         
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Light_Count), at, su32); at += su32;
         entityInfo.Light_Count = swap_endian<u32>(entityInfo.Light_Count);
         light* Lights = new light[entityInfo.Light_Count];
         if (entityInfo.Light_Count > 0) {
             read_buffer(at, Lights, entityInfo.Light_Count);
         }
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Dummy_Count), at, su32); at += su32;
         entityInfo.Dummy_Count = swap_endian<u32>(entityInfo.Dummy_Count);
         dummy* Dummies = new dummy[entityInfo.Dummy_Count];
         if (entityInfo.Dummy_Count > 0) {
             read_buffer(at, Dummies, entityInfo.Dummy_Count);
         }
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.Shape_Count), at, su32); at += su32;
         entityInfo.Shape_Count = swap_endian<u32>(entityInfo.Shape_Count);
         shape* Shapes = new shape[entityInfo.Shape_Count];
         if (entityInfo.Shape_Count > 0) {
             read_buffer(at, Shapes, entityInfo.Shape_Count);
         }
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.OtherNodes_Count), at, su32); at += su32;
         entityInfo.OtherNodes_Count = swap_endian<u32>(entityInfo.OtherNodes_Count);
         node* Nodes = new node[entityInfo.OtherNodes_Count];
@@ -713,9 +718,11 @@ namespace tools::hgr {
                 read_buffer(at, Nodes[i]);
             }
         }
-
+        
         check_id(at, *header);
 
+        // NOTE: Implement Animations Later
+        /*
         memcpy(&(entityInfo.TransformAnimation_Count), at, su32); at += su32;
         entityInfo.TransformAnimation_Count = swap_endian<u32>(entityInfo.TransformAnimation_Count);
         transformAnimation* TransformAnimations = new transformAnimation[entityInfo.TransformAnimation_Count];
@@ -733,25 +740,50 @@ namespace tools::hgr {
         if (entityInfo.UserProperties_Count > 0) {
             read_buffer(at, UserProperties, entityInfo.UserProperties_Count);
         }
+        */
 
-        //std::unique_ptr<hgr::mesh> Mesh{};
-        mesh* Mesh = new mesh();
-        Mesh->name = "James";
+        test(); // FBX Exporter
 
-        delete Mesh; // to avoid memory leaks
-        delete header;
-        delete sceneParams;
-        delete[] Textures;
-        delete[] Materials;
-        delete[] Primitives;
-        delete[] Meshes;
-        delete[] Cameras;
-        delete[] Lights;
-        delete[] Dummies;
-        delete[] Shapes;
-        delete[] Nodes;
-        delete[] TransformAnimations;
-        delete[] UserProperties;
+        // to avoid memory leaks
+        u32 i{ 0 };
+        {
+            delete header;
+            delete sceneParams;
+            delete[] Textures;
+            for (i = 0;i < entityInfo.Material_Count;++i) {
+                delete[] Materials[i].TexParams;
+                delete[] Materials[i].Vec4Params;
+                delete[] Materials[i].FloatParams;
+            }
+            delete[] Materials;
+            for (i = 0;i < entityInfo.Primitive_Count;++i) {
+                delete[] Primitives[i].formats;
+                for (u32 j{ 0 };j < Primitives[i].formatCount;++j) {
+                    delete[] Primitives[i].vArray[j].value;
+                    delete[] Primitives[i].vArray[j].actualValue;
+                }
+                delete[] Primitives[i].vArray;
+                delete[] Primitives[i].indexData;
+                delete[] Primitives[i].usedBones;
+            }
+            delete[] Primitives;
+            for (i = 0;i < entityInfo.Mesh_Count;++i) {
+                delete[] Meshes[i].primIndex;
+                delete[] Meshes[i].meshbone;
+            }
+            delete[] Meshes;
+            delete[] Cameras;
+            delete[] Lights;
+            delete[] Dummies;
+            for (i = 0;i < entityInfo.Shape_Count;++i) {
+                delete[] Shapes[i].lines;
+                delete[] Shapes[i].paths;
+            }
+            delete[] Shapes;
+            delete[] Nodes;
+            //delete[] TransformAnimations;
+            //delete[] UserProperties;
+        }
 
         return true;
     }

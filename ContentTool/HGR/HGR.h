@@ -8,6 +8,16 @@
 #define MAXVERSION 193
 
 namespace tools::hgr {
+
+	enum DataFlags {
+		DATA_MATERIALS = 1,
+		DATA_PRIMITIVES = 2,
+		DATA_NODES = 4,
+		DATA_ANIMATIONS = 8,
+		DATA_USERPROPERTIES = 16,
+
+	};
+
 	struct hgr_info {
 		u16			m_ver{}; // major*100+minor
 		u32			m_exportedVer = 0x020903;
@@ -89,10 +99,13 @@ namespace tools::hgr {
 		u8					sclKeyRate{}; // scale
 		u8					endBehaviour{};
 
-		keyframeSequence*	posKeyData{};
+		//keyframeSequence*	posKeyData{};
+		float3Animation*	posKeyData{};
 		keyframeSequence*	rotKeyData{};
-		keyframeSequence*	sclKeyData{};
+		//keyframeSequence*	sclKeyData{};
+		float3Animation*	sclKeyData{};
 
+		bool				isOptimized{ false };
 		f32					endTime{ 0.f }; // added in version 193
 	};
 
@@ -108,41 +121,5 @@ namespace tools::hgr {
 		//	Particle = "fire"
 		//	Time = 3
 		//	Particle = "snow"
-	};
-
-	enum PlatformName {
-		dx,
-		egl,
-		psp,
-		sw,
-		n3d,
-	};
-
-	enum PlatformDesc {
-		DirectX_9_x,
-		OpenGL_ES,
-		PlayStation_Portable,
-		Software_Renderer,
-		Nokia_N3D,
-	};
-
-	enum DataFlags {
-		DATA_MATERIALS = 1,
-		DATA_PRIMITIVES = 2,
-		DATA_NODES = 4,
-		DATA_ANIMATIONS = 8,
-		DATA_USERPROPERTIES = 16,
-
-	};
-
-	enum PrimitiveType {
-		PRIM_POINT = 0,
-		PRIM_LINE = 1,
-		PRIM_LINESTRIP = 2,
-		PRIM_TRI = 3,
-		PRIM_TRISTRIP = 4,
-		PRIM_TRIFAN = 5,
-		PRIM_SPRITE = 6,
-		PRIM_INVALID = 7
 	};
 }

@@ -8,4 +8,6 @@ namespace tools {
 	public:
 	private:
 	};
+
+	void test();
 }

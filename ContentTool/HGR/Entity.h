@@ -18,7 +18,6 @@ namespace tools::hgr {
 	};
 
 	struct mesh : node {
-		//node					Node{};
 		u32						primCount{};
 		u32*					primIndex{};
 		u32						meshboneCount{};
@@ -26,14 +25,12 @@ namespace tools::hgr {
 	};
 
 	struct camera : node {
-		node			Node{};
 		f32				front{};
 		f32				back{};
 		f32				FOV{}; // Horizon FOV in Radians
 	};
 
 	struct light : node {
-		node			Node{};
 		math::float3	colour{};
 		f32				reserved1{};
 		f32				reserved2{};
@@ -46,7 +43,6 @@ namespace tools::hgr {
 	};
 
 	struct dummy : node {
-		node			Node{};
 		math::float3	boxMin{};
 		math::float3	boxMax{};
 	};
