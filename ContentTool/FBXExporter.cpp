@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <Windows.h>
 #include "FBXExporter.h"
+#include "HGR/Mesh.h"
 
 // If any compilation or linking errors occur, make sure:
 // 1) FBX SDK 2020.2 or later is installed on your system
@@ -56,13 +57,6 @@ namespace tools {
                 // will be automatically destroyed.
                 if (gSdkManager) gSdkManager->Destroy();
             }
-
-            // Forward Declaration
-            FbxNode* CreateCube(FbxScene* pScene, char* pName);
-
-            // void CreateTexture(FbxScene* pScene, FbxMesh* pMesh);
-            // void CreateMaterials(FbxScene* pScene, FbxMesh* pMesh);
-            // void SetCubeDefaultPosition(FbxNode* pCube);
 
             // Exports a scene to a file
             bool SaveScene( FbxManager* pSdkManager, FbxScene* pScene, const char* pFilename, 
@@ -141,7 +135,7 @@ namespace tools {
                 FbxNode* lRootNode = pScene->GetRootNode();
 
                 for (u32 i{ 0 };i < info.Primitive_Count;++i) {
-                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh "+i, prim_info[i]);
+                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh", prim_info[i]);
 
                     // Build the node tree.
                     lRootNode->AddChild(lMesh);
@@ -151,30 +145,33 @@ namespace tools {
             }
 
             FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info) {
-                u32 i{ 0 }; int selected{ -1 }; int j{ 0 };
+                u32 i{ 0 }; int pos{ -1 }; int tex0{ -1 }; int j{ 0 };
                 FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
 
-                // FbxVector4* lVertices = new FbxVector4[prim_info.verts]; // I'll replace this with std::vector
                 std::vector<FbxVector4> lVertices;
+                std::vector<FbxVector2> lVectors;
 
                 for (i = 0; i < prim_info.formatCount; ++i) {
                     if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
-                        selected = i;
-                        break;
+                        pos = i;
+                    } else if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
+                        tex0 = i;
                     }
                 }
-                assert(selected != -1);
+                assert(pos != -1 && tex0 != -1);
 
-                u32 size = VertexFormat::getDataDim(VertexFormat::toDataFormat(prim_info.formats[i].format.c_str()));
-                size *= prim_info.verts;
-
-                s16* buf = prim_info.vArray[selected].value;
+                s16* buf = prim_info.vArray[pos].value;
 
                 // Create Control Points from Vertices
-                for (i = 0; i < size; ++i) {
-                    lVertices.push_back({ (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[0], 
-                                          (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[1], 
-                                          (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[2] });
+                for (i = 0; i < prim_info.verts; ++i) {
+                    lVertices.push_back({ (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[0],
+                                          (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[1],
+                                          (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[2] });
+                }
+
+                for (i = 0; i < prim_info.verts; ++i) {
+                    lVectors.push_back({ (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[0],
+                                         (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[1] });
                 }
 
                 // Map Vertices to Faces/Indices
@@ -189,16 +186,29 @@ namespace tools {
                     lPolygonVertices[i] = i;
                 }
 
-                // Set Normals
-                FbxGeometryElementNormal* lGeometryElementNormal = lMesh->CreateElementNormal();
-                lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eNone);
-
-                lMesh->GenerateNormals(false, false, true);
+                // Set Normals -> is it necessary to assign if i'm generating at a later stage
+                //FbxGeometryElementNormal* lGeometryElementNormal = lMesh->CreateElementNormal();
+                //lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eNone);
 
                 // Create UV for Diffuse Channel, Ambient Channel and Emissive Channel [idk if there are any more]
+                
+                // Diffuse channel - automatically calculate UV co-ords
+                FbxGeometryElementUV* lUVDiffuseElement = lMesh->CreateElementUV(gDiffuseElementName);
+                FBX_ASSERT(lUVDiffuseElement != NULL);
+                lUVDiffuseElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
+                lUVDiffuseElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
+
+                buf = prim_info.vArray[tex0].value;
+
+                for (i = 0; i < prim_info.indices; ++i) {
+                    lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i]]);
+                }
+                
+                lUVDiffuseElement->GetIndexArray().SetCount(24); // Resize
 
                 // Create Polygon and Map UVs
-                for (i = 0; i < prim_info.indices/3; i++)
+                assert(prim_info.primitiveType == tools::hgr::Mesh::PRIM_TRI);
+                for (i = 0; i < prim_info.indices/3; i++) // It's a trigon
                 {
                     // we won't use the default way of assigning textures, as we have
                     // textures on more than just the default (diffuse) channel.
@@ -210,7 +220,7 @@ namespace tools {
                         lMesh->AddPolygon(lPolygonVertices[i * 3 + j]); // For each index
 
                         // Update the index array of the UVs for diffuse, ambient and emissive
-                        // lUVDiffuseElement->GetIndexArray().SetAt(i * 4 + j, j);
+                        lUVDiffuseElement->GetIndexArray().SetAt(i * 3 + j, j);
                         // lUVAmbientElement->GetIndexArray().SetAt(i * 4 + j, j);
                         // lUVEmissiveElement->GetIndexArray().SetAt(i * 4 + j, j);
 
@@ -223,12 +233,86 @@ namespace tools {
                 FbxNode* lNode = FbxNode::Create(pScene, pName);
                 lNode->SetNodeAttribute(lMesh);
                 lNode->SetShadingMode(FbxNode::eTextureShading);
+                lMesh->GenerateNormals(false, false, true);
 
-                // CreateTexture(pScene, lMesh); // if none created, Default material will be applied without textures.
+                // CreateHGRTexture(pScene, lMesh); // if none created, Default material will be applied without textures.
 
                 delete[] lPolygonVertices;
+                lVectors.clear();
                 lVertices.clear();
                 return lNode;
+            }
+
+            void CreateHGRTexture(FbxScene* pScene, FbxMesh* pMesh, hgr::material_info hgrMaterial, const char* texture) {
+                // A texture need to be connected to a property on the material,
+                // so let's use the material (if it exists) or create a new one
+                FbxSurfacePhong* lMaterial = NULL;
+
+                //get the node of mesh, add material for it.
+                FbxNode* lNode = pMesh->GetNode();
+                if (lNode) {
+                    lMaterial = lNode->GetSrcObject<FbxSurfacePhong>(0);
+                    if (lMaterial == NULL) {
+                        FbxString lMaterialName = "toto";
+                        FbxString lShadingName = "Phong";
+                        FbxDouble3 lBlack(0.0, 0.0, 0.0);
+                        FbxDouble3 lRed(1.0, 0.0, 0.0);
+                        FbxDouble3 lDiffuseColor(0.75, 0.75, 0.0);
+
+                        FbxLayer* lLayer = pMesh->GetLayer(0);
+
+                        // Create a layer element material to handle proper mapping.
+                        FbxLayerElementMaterial* lLayerElementMaterial = FbxLayerElementMaterial::Create(pMesh, lMaterialName.Buffer());
+
+                        // This allows us to control where the materials are mapped.  Using eAllSame
+                        // means that all faces/polygons of the mesh will be assigned the same material.
+                        lLayerElementMaterial->SetMappingMode(FbxLayerElement::eAllSame);
+                        lLayerElementMaterial->SetReferenceMode(FbxLayerElement::eIndexToDirect);
+
+                        // Save the material on the layer
+                        lLayer->SetMaterials(lLayerElementMaterial);
+
+                        // Add an index to the lLayerElementMaterial.  Since we have only one, and are using eAllSame mapping mode,
+                        // we only need to add one.
+                        lLayerElementMaterial->GetIndexArray().Add(0);
+
+                        lMaterial = FbxSurfacePhong::Create(pScene, lMaterialName.Buffer());
+
+                        // Generate primary and secondary colors.
+                        lMaterial->Emissive.Set(lBlack);
+                        lMaterial->Ambient.Set(lRed);
+                        lMaterial->AmbientFactor.Set(1.);
+                        // Add texture for diffuse channel
+                        lMaterial->Diffuse.Set(lDiffuseColor);
+                        lMaterial->DiffuseFactor.Set(1.);
+                        lMaterial->TransparencyFactor.Set(0.4);
+                        lMaterial->ShadingModel.Set(lShadingName);
+                        lMaterial->Shininess.Set(0.5);
+                        lMaterial->Specular.Set(lBlack);
+                        lMaterial->SpecularFactor.Set(0.3);
+                        lNode->AddMaterial(lMaterial);
+                    }
+                }
+
+                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, "Diffuse Texture");
+
+                // Set texture properties.
+                lTexture->SetFileName(texture); // Resource file is in current directory.
+                lTexture->SetTextureUse(FbxTexture::eStandard);
+                lTexture->SetMappingType(FbxTexture::eUV);
+                lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
+                lTexture->SetSwapUV(false);
+
+                lTexture->SetTranslation(0.0, 0.0);
+                lTexture->SetScale(1.0, 1.0);
+                lTexture->SetRotation(0.0, 0.0);
+
+                lTexture->UVSet.Set(FbxString(gDiffuseElementName)); // Connect texture to the proper UV
+
+
+                // don't forget to connect the texture to the corresponding property of the material
+                if (lMaterial)
+                    lMaterial->Diffuse.ConnectSrcObject(lTexture);
             }
 
             // Mesh -> node
@@ -577,58 +661,24 @@ namespace tools {
                 }
             }
 
-            // Cube is translated to the left.
-            void SetCubeDefaultPosition(FbxNode* pCube)
-            {
-                pCube->LclTranslation.Set(FbxVector4(-75.0, -50.0, 0.0));
-                pCube->LclRotation.Set(FbxVector4(0.0, 0.0, 0.0));
-                pCube->LclScaling.Set(FbxVector4(1.0, 1.0, 1.0));
-            }
-
-
         private:
 
         };
 
 	} // Anonymous Namespace
 
-    void Importer() {
-        // Change the following filename to a suitable filename value.
-        const char* lFilename = "C:\\Users\\Soumya\\Desktop\\Cardboard box\\Models and Textures\\Cardboard box.fbx";
-
-        // Initialize the SDK manager. This object handles memory management.
-        FbxManager* lSdkManager = FbxManager::Create();
-
-        // Create the IO settings object.
-        FbxIOSettings* ios = FbxIOSettings::Create(lSdkManager, IOSROOT);
-        lSdkManager->SetIOSettings(ios);
-
-        // Create an importer using the SDK manager.
-        FbxImporter* lImporter = FbxImporter::Create(lSdkManager, "");
-
-        // Use the first argument as the filename for the importer.
-        if (!lImporter->Initialize(lFilename, -1, lSdkManager->GetIOSettings())) {
-            printf("Call to FbxImporter::Initialize() failed.\n");
-            printf("Error returned: %s\n\n", lImporter->GetStatus().GetErrorString());
-            //return false;
-        }
-
-        // Create a new scene so that it can be populated by the imported file.
-        FbxScene* lScene = FbxScene::Create(lSdkManager, "myScene");
-
-        // Import the contents of the file into the scene.
-        lImporter->Import(lScene);
-
-        // The file is imported, so get rid of the importer.
-        lImporter->Destroy();
-    }
-
-    void test(hgr::primitive_info* prim_info, hgr::entity_info info) {
+    void CreateFBX(hgr::assetData& asset, const char* path) {
+        // Initialize
         Exporter* ex = new Exporter();
-        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "myScene");
+        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "hgrScene");
 
-        ex->CreateScene(gScene, prim_info, info);
-        ex->SaveScene(ex->gSdkManager, gScene, "TestHGRFile", 0);
+        // Filter the filename from path
+        std::string file = path;
+        file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 4);
+
+        // Create and save fbx
+        ex->CreateScene(gScene, asset.primInfo, *(asset.entityInfo));
+        ex->SaveScene(ex->gSdkManager, gScene, file.c_str(), 0);
 
         // De-allocate memory
         gScene->Destroy();

@@ -30,7 +30,6 @@ namespace tools::hgr {
 		f32 scale{};
 		f32 bias[4]{0};
 		s16* value{};
-		f32* actualValue{};
 		u32 size{};
 	};
 }

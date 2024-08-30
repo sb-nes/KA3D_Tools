@@ -124,4 +124,15 @@ namespace tools::hgr {
 		//	Time = 3
 		//	Particle = "snow"
 	};
+
+	struct assetData {
+		hgr_info* info;
+		scene_param_info* scene_param;
+		entity_info* entityInfo;
+
+		texture_info* texInfo;
+		material_info* matInfo;
+		primitive_info* primInfo;
+
+	};
 }

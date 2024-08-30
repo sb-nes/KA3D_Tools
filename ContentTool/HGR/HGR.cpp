@@ -741,7 +741,16 @@ namespace tools::hgr {
         }
         */
 
-        test(Primitives, entityInfo); // FBX Exporter
+        assetData Asset{};
+        // Fill Data
+        Asset.info = header;
+        Asset.scene_param = sceneParams;
+        Asset.entityInfo = &entityInfo;
+        Asset.texInfo = Textures;
+        Asset.matInfo = Materials;
+        Asset.primInfo = Primitives;
+
+        CreateFBX(Asset, path); // FBX Exporter
 
         // to avoid memory leaks
         u32 i{ 0 };
@@ -759,7 +768,6 @@ namespace tools::hgr {
                 delete[] Primitives[i].formats;
                 for (u32 j{ 0 };j < Primitives[i].formatCount;++j) {
                     delete[] Primitives[i].vArray[j].value;
-                    delete[] Primitives[i].vArray[j].actualValue;
                 }
                 delete[] Primitives[i].vArray;
                 delete[] Primitives[i].indexData;

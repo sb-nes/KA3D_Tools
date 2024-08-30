@@ -11,5 +11,6 @@ namespace tools {
 	};
 
 	void test();
-	void test(hgr::primitive_info* prim_info, hgr::entity_info info);
+
+	void CreateFBX(hgr::assetData& asset, const char* path);
 }
