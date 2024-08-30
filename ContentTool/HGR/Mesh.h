@@ -1,6 +1,6 @@
 #pragma once
 
-namespace tools::hgr::mesh {
+namespace tools::hgr::Mesh {
 
 	enum PrimitiveType {
 		PRIM_POINT = 0,

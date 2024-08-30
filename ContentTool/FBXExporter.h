@@ -1,6 +1,7 @@
 #pragma once
 #include "ToolCommon.h"
 #include <fbxsdk.h>
+#include "HGR/HGR.h"
 
 namespace tools {
 
@@ -10,4 +11,6 @@ namespace tools {
 	};
 
 	void test();
+
+	void CreateFBX(hgr::assetData& asset, const char* path);
 }

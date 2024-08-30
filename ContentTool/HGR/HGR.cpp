@@ -161,29 +161,61 @@ namespace tools::hgr {
         bool read_buffer(const u8*& at, vertArray*& info, u8& count, u32 verts, vertFormat* formats) {
             u32 size{ 0 };
             u32 length{ 0 };
+
+            f32 posscalebias[4]{1,0,0,0};
+            f32 uvscalebias[4]{1,0,0,0};
+            if (version >= 190) {
+                // posscalebias = readFloat4();
+                memcpy(&(posscalebias), at, su32 * 4); at += su32 * 4;
+                for (int i{ 0 };i < 4;++i) SWAP(posscalebias[i], f32);
+
+                // uvscalebias = readFloat4();
+                memcpy(&(uvscalebias), at, su32 * 4); at += su32 * 4;
+                for (int i{ 0 };i < 4;++i) SWAP(uvscalebias[i], f32);
+            }
+
             for (int i{ 0 };i < count;++i) {
+                //memcpy(&(info[i].scale), at, su32); at += su32;
+                //SWAP(info[i].scale, f32);
+                //memcpy(&(info[i].bias), at, su32 * 3); at += su32 * 3;
+
+                if (version < 190) {
+                    // dummy scale + bias4 -> discarded data
+                    at += su32;
+                    at += su32 * 4;
+                }
 
                 size = VertexFormat::getDataDim(VertexFormat::toDataFormat( formats[i].format.c_str() ));
                 length = VertexFormat::getDataSize(VertexFormat::toDataFormat(formats[i].format.c_str()));
                 length /= size;
                 size *= verts;
 
-                memcpy(&(info[i].scale), at, su32); at += su32;
-                SWAP(info[i].scale, f32);
-                memcpy(&(info[i].bias), at, su32 * 3); at += su32 * 3;
+                info[i].value = new s16[size];
 
-                for (int j{ 0 };j < 3;++j) {
-                    SWAP(info[i].bias[j], f32);
+                memcpy(info[i].value, at, size * length); at += size * length; // Lets see with little endian
+                //for (u32 j{ 0 };j < size;++j) {
+                //    SWAP(info[i].value[j], s16);
+                //}
+
+                // Copy pos and uv to respective datatype channels
+                if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
+                    info[i].scale = posscalebias[0];
+                    info[i].bias[0] = posscalebias[1];
+                    info[i].bias[1] = posscalebias[2];
+                    info[i].bias[2] = posscalebias[3];
+                } else if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
+                    info[i].scale = uvscalebias[0];
+                    info[i].bias[0] = uvscalebias[1];
+                    info[i].bias[1] = uvscalebias[2];
+                    info[i].bias[2] = uvscalebias[3];
                 }
 
-                info[i].value = new s16[size];
-                info[i].actualValue = new f32[size];
-
-                memcpy(info[i].value, at, size * length); at += size * length;
-                for (u32 j{ 0 };j < size;++j) {
-                    SWAP(info[i].value[j], s16);
-                    // is it supposed to be little or big endian?
-                    info[i].actualValue[j] = (info[i].value[j] * info[i].scale) + info[i].bias[j % (size / verts)];
+                // Set Bounds of Primitive - I'm not reading, so i can fix this later in a different area
+                if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
+                    math::float4 boundmin, boundmax;
+                    float boundradius;
+                    //VertexFormat::getBound(&buf[0], df, verts, posscalebias, &boundmin, &boundmax, &boundradius);
+                    //prim->setBound(boundmin.xyz(), boundmax.xyz(), boundradius);
                 }
 
                 info[i].size = size;
@@ -193,31 +225,40 @@ namespace tools::hgr {
 
         bool read_buffer(const u8*& at, primitive_info*& info, u32& count) {
             for (u32 i{ 0 };i < count;++i) {
-                memcpy(&(info[i].verts), at, su32); at += su32;
-                SWAP(info[i].verts, u32);
-                memcpy(&(info[i].indices), at, su32); at += su32;
-                SWAP(info[i].indices, u32);
+                if (version < 190) {
+                    memcpy(&(info[i].verts), at, su16); at += su16;
+                    SWAP(info[i].verts, u32);
+                    memcpy(&(info[i].indices), at, su16); at += su16;
+                    SWAP(info[i].indices, u32);
+                } else {
+                    memcpy(&(info[i].verts), at, su32); at += su32;
+                    SWAP(info[i].verts, u32);
+                    memcpy(&(info[i].indices), at, su32); at += su32;
+                    SWAP(info[i].indices, u32);
+                }
 
                 memcpy(&(info[i].formatCount), at, 1); at += 1;
-                info[i].formats = new vertFormat[info[i].formatCount];
-
+                info[i].formats = new vertFormat[info[i].formatCount]; 
                 info[i].vArray = new vertArray[info[i].formatCount];
+
                 read_buffer(at, info[i].formats, info[i].formatCount);
 
                 memcpy(&(info[i].matIndex), at, su16); at += su16;
                 SWAP(info[i].matIndex, u16);
-                memcpy(&(info[i].primitiveType), at, su16); at += su16;
+                memcpy(&(info[i].primitiveType), at, su16); at += su16; // Primitive::PRIM_TRI -> Default
                 SWAP(info[i].primitiveType, u16);
 
                 read_buffer(at, info[i].vArray, info[i].formatCount, info[i].verts, info[i].formats);
 
+                // WARNING: Endianess dependent read
                 info[i].indexData = new u16[info[i].indices];
                 memcpy(info[i].indexData, at, su16 * info[i].indices); at += su16 * info[i].indices;
-                for (u32 j{ 0 };j < info[i].indices;++j) {
-                    SWAP(info[i].indexData[j], u16);
-                }
+                //for (u32 j{ 0 };j < info[i].indices;++j) {
+                //    SWAP(info[i].indexData[j], u16);
+                //}
                 
                 memcpy(&(info[i].usedBoneCount), at, 1); at += 1; 
+                assert(info[i].usedBoneCount <= MAX_BONES && ("Failed to load scene. Too many bones: "+i));
 
                 info[i].usedBones = new u8[info[i].usedBoneCount];
                 memcpy(info[i].usedBones, at, info[i].usedBoneCount); at += info[i].usedBoneCount;
@@ -700,7 +741,16 @@ namespace tools::hgr {
         }
         */
 
-        test(); // FBX Exporter
+        assetData Asset{};
+        // Fill Data
+        Asset.info = header;
+        Asset.scene_param = sceneParams;
+        Asset.entityInfo = &entityInfo;
+        Asset.texInfo = Textures;
+        Asset.matInfo = Materials;
+        Asset.primInfo = Primitives;
+
+        CreateFBX(Asset, path); // FBX Exporter
 
         // to avoid memory leaks
         u32 i{ 0 };
@@ -718,7 +768,6 @@ namespace tools::hgr {
                 delete[] Primitives[i].formats;
                 for (u32 j{ 0 };j < Primitives[i].formatCount;++j) {
                     delete[] Primitives[i].vArray[j].value;
-                    delete[] Primitives[i].vArray[j].actualValue;
                 }
                 delete[] Primitives[i].vArray;
                 delete[] Primitives[i].indexData;

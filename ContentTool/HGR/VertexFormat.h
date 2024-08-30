@@ -67,16 +67,6 @@ namespace tools::VertexFormat {
 		/** Number of different vertex component types. */
 		DT_SIZE
 	};
-
-	//static std::map<std::string, DataFormat> dfMap{ // std::map::operator[] is a non-const member function; Therefore, i can't make it const.
-	//	{"DF_S_16", DataFormat::DF_S_16}, // int16
-	//	{"DF_V2_16", DataFormat::DF_V2_16}, // int16[2]
-	//	{"DF_V3_16", DataFormat::DF_V3_16}, // int16[3]
-	//	{"DF_V4_16", DataFormat::DF_V4_16}, // int16[4]
-	//	{"DF_V3_32", DataFormat::DF_V3_32}, // float32[3]
-	//	{"DF_V4_32", DataFormat::DF_V4_32}, // float32[4]
-	//};
-
 	
 	// Returns data dimensions (in number of components) of specified data format.
 	int		
