@@ -7,6 +7,8 @@
 #define MINVERSION 170
 #define MAXVERSION 193
 
+#define MAX_BONES 255
+
 namespace tools::hgr {
 
 	enum DataFlags {

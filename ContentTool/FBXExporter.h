@@ -1,6 +1,7 @@
 #pragma once
 #include "ToolCommon.h"
 #include <fbxsdk.h>
+#include "HGR/HGR.h"
 
 namespace tools {
 
@@ -10,4 +11,5 @@ namespace tools {
 	};
 
 	void test();
+	void test(hgr::primitive_info* prim_info, hgr::entity_info info);
 }

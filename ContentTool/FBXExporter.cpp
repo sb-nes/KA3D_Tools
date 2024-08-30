@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <Windows.h>
 #include "FBXExporter.h"
-#include "HGR/HGR.h"
 
 // If any compilation or linking errors occur, make sure:
 // 1) FBX SDK 2020.2 or later is installed on your system
@@ -138,29 +137,98 @@ namespace tools {
                 return true;
             }
 
-            bool CreateScene(FbxScene*& pScene, hgr::primitive_info* prim_info, hgr::entity_info* info) {
-                FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh A", prim_info[0]);
-
-                // Build the node tree.
+            bool CreateScene(FbxScene*& pScene, hgr::primitive_info* prim_info, hgr::entity_info info) {
                 FbxNode* lRootNode = pScene->GetRootNode();
-                lRootNode->AddChild(lMesh);
+
+                for (u32 i{ 0 };i < info.Primitive_Count;++i) {
+                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh "+i, prim_info[i]);
+
+                    // Build the node tree.
+                    lRootNode->AddChild(lMesh);
+                }
 
                 return true;
             }
 
             FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info) {
+                u32 i{ 0 }; int selected{ -1 }; int j{ 0 };
                 FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
 
-                prim_info.vArray[0].scale;
+                // FbxVector4* lVertices = new FbxVector4[prim_info.verts]; // I'll replace this with std::vector
+                std::vector<FbxVector4> lVertices;
+
+                for (i = 0; i < prim_info.formatCount; ++i) {
+                    if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
+                        selected = i;
+                        break;
+                    }
+                }
+                assert(selected != -1);
+
+                u32 size = VertexFormat::getDataDim(VertexFormat::toDataFormat(prim_info.formats[i].format.c_str()));
+                size *= prim_info.verts;
+
+                s16* buf = prim_info.vArray[selected].value;
 
                 // Create Control Points from Vertices
-                for (u32 i{ 0 };i < prim_info.verts;++i) {
-
+                for (i = 0; i < size; ++i) {
+                    lVertices.push_back({ (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[0], 
+                                          (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[1], 
+                                          (*buf++) * prim_info.vArray[selected].scale + prim_info.vArray[selected].bias[2] });
                 }
 
+                // Map Vertices to Faces/Indices
                 lMesh->InitControlPoints(prim_info.indices);
+                FbxVector4* lControlPoints = lMesh->GetControlPoints();
 
-                return nullptr;
+                // Create Array of Polygon Vertices / Vertex Indices
+                int* lPolygonVertices = new int[prim_info.indices];
+
+                for (i = 0;i < prim_info.indices;++i) {
+                    lControlPoints[i] = lVertices[prim_info.indexData[i]]; // Set using IndexData
+                    lPolygonVertices[i] = i;
+                }
+
+                // Set Normals
+                FbxGeometryElementNormal* lGeometryElementNormal = lMesh->CreateElementNormal();
+                lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eNone);
+
+                lMesh->GenerateNormals(false, false, true);
+
+                // Create UV for Diffuse Channel, Ambient Channel and Emissive Channel [idk if there are any more]
+
+                // Create Polygon and Map UVs
+                for (i = 0; i < prim_info.indices/3; i++)
+                {
+                    // we won't use the default way of assigning textures, as we have
+                    // textures on more than just the default (diffuse) channel.
+                    lMesh->BeginPolygon(-1, -1, false);
+
+                    for (j = 0; j < 3; j++)
+                    {
+                        // this function points 
+                        lMesh->AddPolygon(lPolygonVertices[i * 3 + j]); // For each index
+
+                        // Update the index array of the UVs for diffuse, ambient and emissive
+                        // lUVDiffuseElement->GetIndexArray().SetAt(i * 4 + j, j);
+                        // lUVAmbientElement->GetIndexArray().SetAt(i * 4 + j, j);
+                        // lUVEmissiveElement->GetIndexArray().SetAt(i * 4 + j, j);
+
+                    }
+
+                    lMesh->EndPolygon();
+                }
+
+                // Finalize
+                FbxNode* lNode = FbxNode::Create(pScene, pName);
+                lNode->SetNodeAttribute(lMesh);
+                lNode->SetShadingMode(FbxNode::eTextureShading);
+
+                // CreateTexture(pScene, lMesh); // if none created, Default material will be applied without textures.
+
+                delete[] lPolygonVertices;
+                lVertices.clear();
+                return lNode;
             }
 
             // Mesh -> node
@@ -203,6 +271,7 @@ namespace tools {
                 FbxGeometryElementNormal* lGeometryElementNormal = lMesh->CreateElementNormal();
                 lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eByControlPoint);
 
+                
                 // Here are two different ways to set the normal values.
                 bool directCalculation = true;
                 if (directCalculation) {
@@ -275,7 +344,8 @@ namespace tools {
                     lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
                     lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
                 }
-
+                
+                
                 // Array of polygon vertices -> Vertex Indices
                 int lPolygonVertices[] = { 0, 1, 2, 3,
                                            4, 5, 6, 7,
@@ -359,18 +429,19 @@ namespace tools {
 
                     lMesh->EndPolygon();
                 }
+                
 
                 FbxNode* lNode = FbxNode::Create(pScene, pName);
 
                 lNode->SetNodeAttribute(lMesh);
                 lNode->SetShadingMode(FbxNode::eTextureShading);
 
-                CreateTexture(pScene, lMesh);
+                //CreateTexture(pScene, lMesh); // if none created, Default material will be applied 
 
                 return lNode;
             }
 
-            // Create texture for cube.
+            // Create texture and material for cube.
             void CreateTexture(FbxScene* pScene, FbxMesh* pMesh)
             {
                 // A texture need to be connected to a property on the material,
@@ -552,7 +623,7 @@ namespace tools {
         lImporter->Destroy();
     }
 
-    void test(hgr::primitive_info* prim_info, hgr::entity_info* info) {
+    void test(hgr::primitive_info* prim_info, hgr::entity_info info) {
         Exporter* ex = new Exporter();
         FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "myScene");
 
