@@ -1,6 +1,8 @@
 #pragma once
 #include "PrimitiveTypes.h"
 
+#define PI 3.141592653589793
+
 namespace tools::math {
 	struct float3 {
 		f32 x[3]{};
