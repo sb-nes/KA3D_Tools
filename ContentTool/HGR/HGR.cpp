@@ -8,22 +8,22 @@
 #include "Entity.h"
 #include "../FBXExporter.h"
 
-#define MAX_TEXCOORDS = 4 
-
 namespace tools::hgr {
 	namespace {
         constexpr u32 su16{ sizeof(u16) }; // 2 bytes for reading
         constexpr u32 su32{ sizeof(u32) }; // 4 bytes for reading
 
         u16 version{ 0 };
+        bool corrupt{ false };
 
         constexpr bool is_big_endian = (std::endian::native == std::endian::big);
 
         bool check_signature(const u8*& at) {
             // Check Signature
-            char magic[4]; memcpy(magic, at, 4);
+            char magic[5]; memcpy(magic, at, 5);
+            std::string str = "hgrf";
             //int z = memcmp(magic, "hgrfi", 4);
-            //if (str != "hgrf") return false; // Fails to check RN
+            //if (magic != str.c_str()) return false; // Fails to check RN
             at += 5;
 
             return true;
@@ -89,6 +89,19 @@ namespace tools::hgr {
                 SWAP(size, u16);
                 info[i].param_type.assign(at, at + size); at += size; // param Type
 
+                if (corrupt) { // error case
+                    if (info[i].param_type == "AM>9ENTC") {
+                        info[i].param_type = "AMBIENTC";
+                    }
+                    if (info[i].param_type == "SPEC³¼?RC"){
+                        info[i].param_type = "SPECULARC";
+                    }
+                    if (info[i].param_type == "S°½ÃULARC"){
+                        info[i].param_type = "SPECULARC";
+                    }
+                    
+                }
+
                 memcpy(&(info[i].value), at, su32 * 4); at += su32 * 4; 
                 SWAP(info[i].value[0], f32);
                 SWAP(info[i].value[1], f32);
@@ -148,12 +161,46 @@ namespace tools::hgr {
             for (int i{ 0 };i < count;++i) {
                 memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
-                info[i].type.assign(at, at + size); at += size; // type with "DT_" prefix
+                info[i].type.assign(at, at + size); // type with "DT_" prefix
+
+                if (corrupt) { // ERROR CASES
+                    if (info[i].type == "DT_") {
+                        size = 5;
+                        info[i].type.assign(at, at + size);
+                    }
+                    if (info[i].type == "DT_TE") {
+                        size = 7;
+                        info[i].type.assign(at, at + size);
+                    }
+                    if (info[i].type == "¼4WÌEX0") {
+                        info[i].type = "DT_TEX0";
+                    }
+                    if (info[i].type == "DT_PO") {
+                        size = 11;
+                        info[i].type.assign(at, at + size);
+                    }
+                    if (info[i].type == "Ä4+POSITION") {
+                        info[i].type = "DT_POSITION";
+                    }
+                    if (info[i].type == "DT_POSITIOJ") {
+                        at += size;
+                        size = 5; at += su16;
+                        info[i].format.assign(at, at + size); at += size;
+                        continue;
+                    }
+                }
+
+                at += size;
 
                 memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].format.assign(at, at + size); at += size; // format without "DF_" prefix
                 //info[i].format = "DF_" + info[i].format;
+                if (corrupt) { // ERROR CASES
+                    if (info[i].format == "V3_Ñ\n") {
+                        info[i].format = "V3_16";
+                    }
+                }
             }
             return true;
         }
@@ -186,6 +233,10 @@ namespace tools::hgr {
                 }
 
                 size = VertexFormat::getDataDim(VertexFormat::toDataFormat( formats[i].format.c_str() ));
+                if (formats[i].type == "DT_POSITIOJ") {
+                    formats[i].type = "DT_POSITION";
+                }
+                assert(size > 0);
                 length = VertexFormat::getDataSize(VertexFormat::toDataFormat(formats[i].format.c_str()));
                 length /= size;
                 size *= verts;
@@ -243,6 +294,10 @@ namespace tools::hgr {
 
                 read_buffer(at, info[i].formats, info[i].formatCount);
 
+                if (info[i].verts == 24 && info[i].indices == 162 && corrupt) { // Error Case
+                    info[i].verts = 56;
+                }
+
                 memcpy(&(info[i].matIndex), at, su16); at += su16;
                 SWAP(info[i].matIndex, u16);
                 memcpy(&(info[i].primitiveType), at, su16); at += su16; // Primitive::PRIM_TRI -> Default
@@ -256,6 +311,13 @@ namespace tools::hgr {
                 //for (u32 j{ 0 };j < info[i].indices;++j) {
                 //    SWAP(info[i].indexData[j], u16);
                 //}
+                if (corrupt) { // Error Case
+                    for (u32 j{ 0 };j < info[i].indices;++j) {
+                        if (info[i].indexData[j] > info[i].verts) {
+                            info[i].indexData[j] = info[i].verts - 1;
+                        }
+                    }
+                }
                 
                 memcpy(&(info[i].usedBoneCount), at, 1); at += 1; 
                 assert(info[i].usedBoneCount <= MAX_BONES && ("Failed to load scene. Too many bones: "+i));
@@ -625,6 +687,14 @@ namespace tools::hgr {
 	} // Anonymous Namespace
 
     TOOL_INTERFACE bool StoreData(const char* path) {
+
+        { // File Test
+            std::string file = path;
+            file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 5);
+            if (file._Equal("mushroom_level01")) corrupt = true;
+            if (file._Equal("score_level01")) corrupt = true;
+        }
+
         std::unique_ptr<u8[]> buffer{};
         u64 size{ 0 };
         if (!read_file(path, buffer, size)) return false;

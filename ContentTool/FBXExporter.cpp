@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include "FBXExporter.h"
 #include "HGR/Mesh.h"
+#include <cmath>
 
 // If any compilation or linking errors occur, make sure:
 // 1) FBX SDK 2020.2 or later is installed on your system
@@ -34,6 +35,7 @@ namespace tools {
         class Exporter {
         public:
             FbxManager* gSdkManager = nullptr;
+            int         lemmy{ 0 };
 
 #ifdef IOS_REF
 #undef  IOS_REF
@@ -121,21 +123,16 @@ namespace tools {
                 return lStatus;
             }
 
-            bool CreateScene(FbxScene*& pScene, const char* pSampleFileName) {
-                FbxNode* lCube = CreateCube(pScene, "Cube");
-
-                // Build the node tree.
+            bool CreateScene(FbxScene*& pScene, hgr::assetData& asset) {
                 FbxNode* lRootNode = pScene->GetRootNode();
-                lRootNode->AddChild(lCube);
+                hgr::material_info mat_info;
+                hgr::texture_info tex_info;
+                for (u32 i{ 0 };i < (asset.entityInfo)->Primitive_Count;++i) {
+                    mat_info = asset.matInfo[asset.primInfo[i].matIndex];
+                    tex_info = asset.texInfo[mat_info.TexParams[0].texIndex];
 
-                return true;
-            }
-
-            bool CreateScene(FbxScene*& pScene, hgr::primitive_info* prim_info, hgr::entity_info info) {
-                FbxNode* lRootNode = pScene->GetRootNode();
-
-                for (u32 i{ 0 };i < info.Primitive_Count;++i) {
-                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh", prim_info[i]);
+                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh", asset.primInfo[i], 
+                                                   mat_info, tex_info);
 
                     // Build the node tree.
                     lRootNode->AddChild(lMesh);
@@ -144,8 +141,12 @@ namespace tools {
                 return true;
             }
 
-            FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info) {
-                u32 i{ 0 }; int pos{ -1 }; int tex0{ -1 }; int j{ 0 };
+            // Mesh -> node
+            // Vertices -> control points
+            // Normal, Diffuse, Ambient -> FbxGeometryElements
+            FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info, 
+                                   hgr::material_info mat_info, hgr::texture_info tex_info) {
+                u32 i{ 0 }; int pos{ -1 }; int tex0{ -1 }; int j{ 0 }; lemmy++;
                 FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
 
                 std::vector<FbxVector4> lVertices;
@@ -167,11 +168,6 @@ namespace tools {
                     lVertices.push_back({ (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[0],
                                           (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[1],
                                           (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[2] });
-                }
-
-                for (i = 0; i < prim_info.verts; ++i) {
-                    lVectors.push_back({ (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[0],
-                                         (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[1] });
                 }
 
                 // Map Vertices to Faces/Indices
@@ -199,23 +195,31 @@ namespace tools {
                 lUVDiffuseElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
 
                 buf = prim_info.vArray[tex0].value;
+                double x, y;
+
+                for (i = 0; i < prim_info.verts; ++i) {
+                    x = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[0];
+                    y = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[1];
+                    
+                    //lVectors.push_back({ -y + 1.0, x });
+                    lVectors.push_back({ x, y });
+                }
 
                 for (i = 0; i < prim_info.indices; ++i) {
                     lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i]]);
                 }
                 
-                lUVDiffuseElement->GetIndexArray().SetCount(24); // Resize
+                //lUVDiffuseElement->GetIndexArray().SetCount(prim_info.indices); // Resize
 
                 // Create Polygon and Map UVs
                 assert(prim_info.primitiveType == tools::hgr::Mesh::PRIM_TRI);
-                for (i = 0; i < prim_info.indices/3; i++) // It's a trigon
+                for (i = 0; i < (prim_info.indices/3); i++) // It's a trigon
                 {
                     // we won't use the default way of assigning textures, as we have
                     // textures on more than just the default (diffuse) channel.
                     lMesh->BeginPolygon(-1, -1, false);
 
-                    for (j = 0; j < 3; j++)
-                    {
+                    for (j = 0; j < 3; j++) {
                         // this function points 
                         lMesh->AddPolygon(lPolygonVertices[i * 3 + j]); // For each index
 
@@ -233,9 +237,10 @@ namespace tools {
                 FbxNode* lNode = FbxNode::Create(pScene, pName);
                 lNode->SetNodeAttribute(lMesh);
                 lNode->SetShadingMode(FbxNode::eTextureShading);
-                lMesh->GenerateNormals(false, false, true);
+                lMesh->GenerateNormals(true, false, false);
 
-                // CreateHGRTexture(pScene, lMesh); // if none created, Default material will be applied without textures.
+                CreateHGRTexture(pScene, lMesh, mat_info, ("textures\\" + (tex_info.name).substr(0, tex_info.name.length() - 4) + ".png").c_str());
+                // if none created, Default material will be applied without textures.
 
                 delete[] lPolygonVertices;
                 lVectors.clear();
@@ -253,8 +258,8 @@ namespace tools {
                 if (lNode) {
                     lMaterial = lNode->GetSrcObject<FbxSurfacePhong>(0);
                     if (lMaterial == NULL) {
-                        FbxString lMaterialName = "toto";
-                        FbxString lShadingName = "Phong";
+                        FbxString lMaterialName = hgrMaterial.name.c_str();
+                        FbxString lShadingName = hgrMaterial.shaderName.c_str();
                         FbxDouble3 lBlack(0.0, 0.0, 0.0);
                         FbxDouble3 lRed(1.0, 0.0, 0.0);
                         FbxDouble3 lDiffuseColor(0.75, 0.75, 0.0);
@@ -286,15 +291,37 @@ namespace tools {
                         lMaterial->Diffuse.Set(lDiffuseColor);
                         lMaterial->DiffuseFactor.Set(1.);
                         lMaterial->TransparencyFactor.Set(0.4);
+
                         lMaterial->ShadingModel.Set(lShadingName);
                         lMaterial->Shininess.Set(0.5);
                         lMaterial->Specular.Set(lBlack);
                         lMaterial->SpecularFactor.Set(0.3);
+
+                        for (int i = 0; i < hgrMaterial.vec4ParamCount;++i) {
+                            if (hgrMaterial.Vec4Params[i].param_type == "AMBIENTC") {
+                                FbxDouble3 lAmbient(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
+                                lMaterial->Ambient.Set(lAmbient);
+                                lMaterial->AmbientFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
+                            } else if (hgrMaterial.Vec4Params[i].param_type == "DIFFUSEC") {
+                                FbxDouble3 lDiffuse(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
+                                lMaterial->Diffuse.Set(lDiffuse);
+                                lMaterial->TransparencyFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
+                            } else if (hgrMaterial.Vec4Params[i].param_type == "SPECULARC") {
+                                FbxDouble3 lSpecular(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
+                                lMaterial->Specular.Set(lSpecular);
+                                // lMaterial->SpecularFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
+                            } else assert(false && "Vector 4 Parameter not implemented!");
+                        }
+
+                        for (int i = 0; i < hgrMaterial.floatParamCount;++i) {
+                            if(hgrMaterial.FloatParams[i].param_type == "SHININESS") lMaterial->Shininess.Set(hgrMaterial.FloatParams[i].value);
+                        }
+
                         lNode->AddMaterial(lMaterial);
                     }
                 }
 
-                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, "Diffuse Texture");
+                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, hgrMaterial.name.c_str());
 
                 // Set texture properties.
                 lTexture->SetFileName(texture); // Resource file is in current directory.
@@ -309,220 +336,8 @@ namespace tools {
 
                 lTexture->UVSet.Set(FbxString(gDiffuseElementName)); // Connect texture to the proper UV
 
-
                 // don't forget to connect the texture to the corresponding property of the material
-                if (lMaterial)
-                    lMaterial->Diffuse.ConnectSrcObject(lTexture);
-            }
-
-            // Mesh -> node
-            // Vertices -> control points
-            // Normal, Diffuse, Ambient -> FbxGeometryElements
-            FbxNode* CreateCube(FbxScene* pScene, const char* pName) {
-                int i, j;
-                FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
-
-                // Control Point -> Synonym for Vertex; Co-ordinates in XYZ
-                FbxVector4 lControlPoint0(-50, 0, 50);
-                FbxVector4 lControlPoint1(50, 0, 50);
-                FbxVector4 lControlPoint2(50, 100, 50);
-                FbxVector4 lControlPoint3(-50, 100, 50);
-                FbxVector4 lControlPoint4(-50, 0, -50);
-                FbxVector4 lControlPoint5(50, 0, -50);
-                FbxVector4 lControlPoint6(50, 100, -50);
-                FbxVector4 lControlPoint7(-50, 100, -50);
-                // Normal Vectors for Each Face
-                FbxVector4 lNormalXPos(1, 0, 0);
-                FbxVector4 lNormalXNeg(-1, 0, 0);
-                FbxVector4 lNormalYPos(0, 1, 0);
-                FbxVector4 lNormalYNeg(0, -1, 0);
-                FbxVector4 lNormalZPos(0, 0, 1);
-                FbxVector4 lNormalZNeg(0, 0, -1);
-
-                lMesh->InitControlPoints(24); // Initialize the indices buffer size for the mesh
-                FbxVector4* lControlPoints = lMesh->GetControlPoints();
-
-                // N-gon formation
-                lControlPoints[0] = lControlPoint0; lControlPoints[1] = lControlPoint1; lControlPoints[2] = lControlPoint2; lControlPoints[3] = lControlPoint3; 
-                lControlPoints[4] = lControlPoint1; lControlPoints[5] = lControlPoint5; lControlPoints[6] = lControlPoint6; lControlPoints[7] = lControlPoint2; 
-                lControlPoints[8] = lControlPoint5; lControlPoints[9] = lControlPoint4; lControlPoints[10] = lControlPoint7; lControlPoints[11] = lControlPoint6;
-                lControlPoints[12] = lControlPoint4; lControlPoints[13] = lControlPoint0; lControlPoints[14] = lControlPoint3; lControlPoints[15] = lControlPoint7; 
-                lControlPoints[16] = lControlPoint3; lControlPoints[17] = lControlPoint2; lControlPoints[18] = lControlPoint6; lControlPoints[19] = lControlPoint7; 
-                lControlPoints[20] = lControlPoint1; lControlPoints[21] = lControlPoint0; lControlPoints[22] = lControlPoint4; lControlPoints[23] = lControlPoint5;
-
-                // We want to have one normal for each vertex (or control point),
-                // so we set the mapping mode to eByControlPoint.
-                FbxGeometryElementNormal* lGeometryElementNormal = lMesh->CreateElementNormal();
-                lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eByControlPoint);
-
-                
-                // Here are two different ways to set the normal values.
-                bool directCalculation = true;
-                if (directCalculation) {
-                    // The first method is to manually set the actual normal value
-                    // for every control point.
-                    lGeometryElementNormal->SetReferenceMode(FbxGeometryElement::eDirect);
-
-                    // For each index
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYNeg);
-                } else {
-                    // The second method is to the possible values of the normals
-                    // in the direct array, and set the index of that value
-                    // in the index array for every control point.
-                    lGeometryElementNormal->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
-
-                    // Add the 6 different normals to the direct array
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalZNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalXNeg);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYPos);
-                    lGeometryElementNormal->GetDirectArray().Add(lNormalYNeg);
-
-                    // Now for each control point, we need to specify which normal to use
-                    lGeometryElementNormal->GetIndexArray().Add(0); // index of lNormalZPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(0); // index of lNormalZPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(0); // index of lNormalZPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(0); // index of lNormalZPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(1); // index of lNormalXPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(1); // index of lNormalXPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(1); // index of lNormalXPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(1); // index of lNormalXPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(2); // index of lNormalZNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(2); // index of lNormalZNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(2); // index of lNormalZNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(2); // index of lNormalZNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(3); // index of lNormalXNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(3); // index of lNormalXNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(3); // index of lNormalXNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(3); // index of lNormalXNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(4); // index of lNormalYPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(4); // index of lNormalYPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(4); // index of lNormalYPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(4); // index of lNormalYPos in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
-                    lGeometryElementNormal->GetIndexArray().Add(5); // index of lNormalYNeg in the direct array.
-                }
-                
-                
-                // Array of polygon vertices -> Vertex Indices
-                int lPolygonVertices[] = { 0, 1, 2, 3,
-                                           4, 5, 6, 7,
-                                           8, 9, 10, 11,
-                                           12, 13, 14, 15,
-                                           16, 17, 18, 19,
-                                           20, 21, 22, 23 };
-
-                // Create UV for Diffuse channel - automatically calculate UV co-ords
-                FbxGeometryElementUV* lUVDiffuseElement = lMesh->CreateElementUV(gDiffuseElementName);
-                FBX_ASSERT(lUVDiffuseElement != NULL);
-                lUVDiffuseElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
-                lUVDiffuseElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
-
-                FbxVector2 lVectors0(0, 0);
-                FbxVector2 lVectors1(1, 0);
-                FbxVector2 lVectors2(1, 1);
-                FbxVector2 lVectors3(0, 1);
-
-                lUVDiffuseElement->GetDirectArray().Add(lVectors0);
-                lUVDiffuseElement->GetDirectArray().Add(lVectors1);
-                lUVDiffuseElement->GetDirectArray().Add(lVectors2);
-                lUVDiffuseElement->GetDirectArray().Add(lVectors3);
-
-                // Create UV for Ambient channel
-                FbxGeometryElementUV* lUVAmbientElement = lMesh->CreateElementUV(gAmbientElementName);
-
-                lUVAmbientElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
-                lUVAmbientElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
-
-                lVectors0.Set(0, 0);
-                lVectors1.Set(1, 0);
-                lVectors2.Set(0, 0.418586879968643);
-                lVectors3.Set(1, 0.418586879968643);
-
-                lUVAmbientElement->GetDirectArray().Add(lVectors0);
-                lUVAmbientElement->GetDirectArray().Add(lVectors1);
-                lUVAmbientElement->GetDirectArray().Add(lVectors2);
-                lUVAmbientElement->GetDirectArray().Add(lVectors3);
-
-                // Create UV for Emissive channel
-                FbxGeometryElementUV* lUVEmissiveElement = lMesh->CreateElementUV(gEmissiveElementName);
-
-                lUVEmissiveElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
-                lUVEmissiveElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
-
-                lVectors0.Set(0.2343, 0);
-                lVectors1.Set(1, 0.555);
-                lVectors2.Set(0.333, 0.999);
-                lVectors3.Set(0.555, 0.666);
-
-                lUVEmissiveElement->GetDirectArray().Add(lVectors0);
-                lUVEmissiveElement->GetDirectArray().Add(lVectors1);
-                lUVEmissiveElement->GetDirectArray().Add(lVectors2);
-                lUVEmissiveElement->GetDirectArray().Add(lVectors3);
-
-                // Now we have set the UVs as eIndexToDirect reference and in eByPolygonVertex  mapping mode
-                // we must update the size of the index array.
-                lUVDiffuseElement->GetIndexArray().SetCount(24);
-                lUVAmbientElement->GetIndexArray().SetCount(24);
-                lUVEmissiveElement->GetIndexArray().SetCount(24);
-
-                // Create polygons. Assign texture and texture UV indices.
-                for (i = 0; i < 6; i++)
-                {
-                    // we won't use the default way of assigning textures, as we have
-                    // textures on more than just the default (diffuse) channel.
-                    lMesh->BeginPolygon(-1, -1, false);
-
-                    for (j = 0; j < 4; j++)
-                    {
-                        // this function points 
-                        lMesh->AddPolygon(lPolygonVertices[i * 4 + j] ); // For each index
-
-                        // Update the index array of the UVs for diffuse, ambient and emissive
-                        lUVDiffuseElement->GetIndexArray().SetAt(i * 4 + j, j);
-                        lUVAmbientElement->GetIndexArray().SetAt(i * 4 + j, j);
-                        lUVEmissiveElement->GetIndexArray().SetAt(i * 4 + j, j);
-
-                    }
-
-                    lMesh->EndPolygon();
-                }
-                
-
-                FbxNode* lNode = FbxNode::Create(pScene, pName);
-
-                lNode->SetNodeAttribute(lMesh);
-                lNode->SetShadingMode(FbxNode::eTextureShading);
-
-                //CreateTexture(pScene, lMesh); // if none created, Default material will be applied 
-
-                return lNode;
+                if (lMaterial) lMaterial->Diffuse.ConnectSrcObject(lTexture);
             }
 
             // Create texture and material for cube.
@@ -631,36 +446,6 @@ namespace tools {
                     lMaterial->Emissive.ConnectSrcObject(lTexture);
             }
 
-            // Create materials for pyramid.
-            void CreateMaterials(FbxScene* pScene, FbxMesh* pMesh) { 
-                for (int i = 0; i < 5; i++) {
-                    FbxString lMaterialName = "material";
-                    FbxString lShadingName = "Phong";
-                    lMaterialName += i;
-                    FbxDouble3 lBlack(0.0, 0.0, 0.0);
-                    FbxDouble3 lRed(1.0, 0.0, 0.0);
-                    FbxDouble3 lColor;
-                    FbxSurfacePhong* lMaterial = FbxSurfacePhong::Create(pScene, lMaterialName.Buffer());
-
-
-                    // Generate primary and secondary colors.
-                    lMaterial->Emissive.Set(lBlack);
-                    lMaterial->Ambient.Set(lRed);
-                    lColor = FbxDouble3(i > 2 ? 1.0 : 0.0,
-                        i > 0 && i < 4 ? 1.0 : 0.0,
-                        i % 2 ? 0.0 : 1.0);
-                    lMaterial->Diffuse.Set(lColor);
-                    lMaterial->TransparencyFactor.Set(0.0);
-                    lMaterial->ShadingModel.Set(lShadingName);
-                    lMaterial->Shininess.Set(0.5);
-
-                    //get the node of mesh, add material for it.
-                    FbxNode* lNode = pMesh->GetNode();
-                    if (lNode)
-                        lNode->AddMaterial(lMaterial);
-                }
-            }
-
         private:
 
         };
@@ -674,23 +459,11 @@ namespace tools {
 
         // Filter the filename from path
         std::string file = path;
-        file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 4);
+        file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 5);
 
         // Create and save fbx
-        ex->CreateScene(gScene, asset.primInfo, *(asset.entityInfo));
+        ex->CreateScene(gScene, asset);
         ex->SaveScene(ex->gSdkManager, gScene, file.c_str(), 0);
-
-        // De-allocate memory
-        gScene->Destroy();
-        delete ex; // automatically calls the destructor
-    }
-
-    void test() {
-        Exporter* ex = new Exporter();
-        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "myScene");
-
-        ex->CreateScene(gScene, "mySceneName");
-        ex->SaveScene(ex->gSdkManager, gScene, "TestFile", 0);
 
         // De-allocate memory
         gScene->Destroy();

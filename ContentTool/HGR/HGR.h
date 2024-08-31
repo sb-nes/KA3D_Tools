@@ -8,6 +8,7 @@
 #define MAXVERSION 193
 
 #define MAX_BONES 255
+#define MAX_TEXCOORDS = 4 
 
 namespace tools::hgr {
 
