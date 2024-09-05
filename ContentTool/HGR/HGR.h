@@ -18,7 +18,6 @@ namespace tools::hgr {
 		DATA_NODES = 4,
 		DATA_ANIMATIONS = 8,
 		DATA_USERPROPERTIES = 16,
-
 	};
 
 	struct hgr_info {
@@ -135,5 +134,6 @@ namespace tools::hgr {
 		material_info* matInfo;
 		primitive_info* primInfo;
 
+		std::vector<node> Nodes;
 	};
 }

@@ -9,12 +9,14 @@
 #include "../FBXExporter.h"
 
 namespace tools::hgr {
+
 	namespace {
         constexpr u32 su16{ sizeof(u16) }; // 2 bytes for reading
         constexpr u32 su32{ sizeof(u32) }; // 4 bytes for reading
 
         u16 version{ 0 };
         bool corrupt{ false };
+        std::vector<node> entityNodes;
 
         constexpr bool is_big_endian = (std::endian::native == std::endian::big);
 
@@ -355,6 +357,9 @@ namespace tools::hgr {
             memcpy(&(info.parentIndex), at, su32); at += su32; // u32_invalid_id = -1 -> iron-blooded orphan
             SWAP(info.parentIndex, u32);
 
+            info.isEnabled = nodes::NODE_ENABLED & info.nodeFlags;
+            info.classID = (nodes::NODE_CLASS & info.nodeFlags) >> 4;
+
             return true;
         }
 
@@ -379,17 +384,25 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, mesh*& info, u32& count) {
-            u32 j{ 0 };
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, mesh*& info, u32& count) {
+            u32 j{ 0 }; node x;
+            entityNodes.clear();
+
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index});
 
                 memcpy(&(info[i].primCount), at, su32); at += su32;
                 SWAP(info[i].primCount, u32);
@@ -413,20 +426,28 @@ namespace tools::hgr {
                 }
             }
 
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, camera*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, camera*& info, u32& count) {
+            node x;
+            entityNodes.clear();
+
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].front), at, su32); at += su32;
                 SWAP(info[i].front, f32);
@@ -435,20 +456,27 @@ namespace tools::hgr {
                 memcpy(&(info[i].FOV), at, su32); at += su32;
                 SWAP(info[i].FOV, f32);
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, light*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, light*& info, u32& count) {
+            node x;
+            entityNodes.clear();
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&info[i].colour.x, at, su32 * 3); at += su32 * 3;
                 for (u32 j = 0;j < 3;++j) {
@@ -470,21 +498,28 @@ namespace tools::hgr {
                 memcpy(&(info[i].type), at, 1); at += 1;
                 SWAP(info[i].type, u8);
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, dummy*& info, u32& count) {
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, dummy*& info, u32& count) {
             u32 j{ 0 };
-            node* Node = new node();
+            node x;
+            entityNodes.clear();
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].boxMin.x), at, su32 * 3); at += su32 * 3;
                 for (j = 0;j < 3;++j) {
@@ -495,8 +530,7 @@ namespace tools::hgr {
                     SWAP(info[i].boxMax.x[j], f32);
                 }
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
         bool read_buffer(const u8*& at, line& info) {
@@ -523,17 +557,25 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, shape*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, shape*& info, u32& count) {
+            node x;
+            entityNodes.clear();
             s32 j{ 0 };
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].lineCount), at, su32); at += su32;
                 SWAP(info[i].lineCount, s32);
@@ -550,8 +592,7 @@ namespace tools::hgr {
                     read_buffer(at, info[i].paths[j]);
                 }
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
         bool read_buffer(const u8*& at, keyframeSequence& info) {
@@ -668,6 +709,19 @@ namespace tools::hgr {
             return true;
         }
 
+        bool find_children(std::vector<node>& lNodes) {
+            int i{ 0 }; // if only i hadn't used an iterator
+            for (auto lNode : lNodes) {
+                ++i; if (lNode.parentIndex == 4294967295) continue;
+                if (lNode.parentIndex == 0) {
+                    continue;
+                }
+
+                lNodes[lNode.parentIndex].childIndex.push_back(i);
+            }
+            return true;
+        }
+
         bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& size) {
             if (!std::filesystem::exists(path)) return false;
             assert(true);
@@ -687,6 +741,8 @@ namespace tools::hgr {
 	} // Anonymous Namespace
 
     TOOL_INTERFACE bool StoreData(const char* path) {
+
+        std::vector<node> hgrNodes;
 
         { // File Test
             std::string file = path;
@@ -739,7 +795,11 @@ namespace tools::hgr {
         memcpy(&(entityInfo.Mesh_Count), at, su32); at += su32;
         entityInfo.Mesh_Count = swap_endian<u32>(entityInfo.Mesh_Count);
         mesh* Meshes = new mesh[entityInfo.Mesh_Count];
-        read_buffer(at, Meshes, entityInfo.Mesh_Count);
+        auto x = read_buffer(at, Meshes, entityInfo.Mesh_Count);
+
+        hgrNodes.insert(hgrNodes.end(),
+                        std::make_move_iterator(x.begin()),
+                        std::make_move_iterator(x.end()));
         
         check_id(at, *header);
         
@@ -747,7 +807,10 @@ namespace tools::hgr {
         entityInfo.Camera_Count = swap_endian<u32>(entityInfo.Camera_Count);
         camera* Cameras = new camera[entityInfo.Camera_Count];
         if (entityInfo.Camera_Count > 0) {
-            read_buffer(at, Cameras, entityInfo.Camera_Count);
+            x = read_buffer(at, Cameras, entityInfo.Camera_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                            std::make_move_iterator(x.begin()),
+                            std::make_move_iterator(x.end()));
         }
         
         check_id(at, *header);
@@ -756,7 +819,10 @@ namespace tools::hgr {
         entityInfo.Light_Count = swap_endian<u32>(entityInfo.Light_Count);
         light* Lights = new light[entityInfo.Light_Count];
         if (entityInfo.Light_Count > 0) {
-            read_buffer(at, Lights, entityInfo.Light_Count);
+            x = read_buffer(at, Lights, entityInfo.Light_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                            std::make_move_iterator(x.begin()),
+                            std::make_move_iterator(x.end()));
         }
         
         check_id(at, *header);
@@ -765,7 +831,10 @@ namespace tools::hgr {
         entityInfo.Dummy_Count = swap_endian<u32>(entityInfo.Dummy_Count);
         dummy* Dummies = new dummy[entityInfo.Dummy_Count];
         if (entityInfo.Dummy_Count > 0) {
-            read_buffer(at, Dummies, entityInfo.Dummy_Count);
+            x = read_buffer(at, Dummies, entityInfo.Dummy_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                            std::make_move_iterator(x.begin()),
+                            std::make_move_iterator(x.end()));
         }
         
         check_id(at, *header);
@@ -774,7 +843,10 @@ namespace tools::hgr {
         entityInfo.Shape_Count = swap_endian<u32>(entityInfo.Shape_Count);
         shape* Shapes = new shape[entityInfo.Shape_Count];
         if (entityInfo.Shape_Count > 0) {
-            read_buffer(at, Shapes, entityInfo.Shape_Count);
+            x = read_buffer(at, Shapes, entityInfo.Shape_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                            std::make_move_iterator(x.begin()),
+                            std::make_move_iterator(x.end()));
         }
         
         check_id(at, *header);
@@ -785,6 +857,7 @@ namespace tools::hgr {
         if (entityInfo.OtherNodes_Count > 0) {
             for (u32 i{ 0 };i < entityInfo.OtherNodes_Count; ++i) {
                 read_buffer(at, Nodes[i]);
+                hgrNodes.push_back(Nodes[i]);
             }
         }
         
@@ -819,6 +892,9 @@ namespace tools::hgr {
         Asset.texInfo = Textures;
         Asset.matInfo = Materials;
         Asset.primInfo = Primitives;
+
+        find_children(hgrNodes);
+        Asset.Nodes = hgrNodes;
 
         CreateFBX(Asset, path); // FBX Exporter
 

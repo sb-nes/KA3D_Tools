@@ -17,5 +17,6 @@
     <ClInclude Include="Engine\Platform.h" />
     <ClInclude Include="HGR\Mesh.h" />
     <ClInclude Include="HGR\VertexFormat.h" />
+    <ClInclude Include="HGR\Nodes\Node.h" />
   </ItemGroup>
 </Project>
