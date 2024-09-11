@@ -2,7 +2,6 @@
 #include <string.h>
 #include "../Common/PrimitiveTypes.h"
 #include "../Common/Math.h"
-#include "Nodes/Node.h"
 
 namespace tools::hgr {
 	struct node {

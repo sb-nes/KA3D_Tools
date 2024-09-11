@@ -5,6 +5,7 @@
 #include "FBXExporter.h"
 #include "HGR/Mesh.h"
 #include <cmath>
+#include <set>
 
 // If any compilation or linking errors occur, make sure:
 // 1) FBX SDK 2020.2 or later is installed on your system
@@ -34,8 +35,10 @@ namespace tools {
 
         class Exporter {
         public:
-            FbxManager* gSdkManager = nullptr;
-            int         lemmy{ 0 };
+            FbxManager*             gSdkManager = nullptr;
+            FbxNode*                lRootNode = nullptr;
+            hgr::assetData          _assets;
+            std::set<std::string>   _uid;
 
 #ifdef IOS_REF
 #undef  IOS_REF
@@ -123,30 +126,91 @@ namespace tools {
                 return lStatus;
             }
 
-            bool CreateScene(FbxScene*& pScene, hgr::assetData& asset) {
-                FbxNode* lRootNode = pScene->GetRootNode();
-                hgr::material_info mat_info;
-                hgr::texture_info tex_info;
-                for (u32 i{ 0 };i < (asset.entityInfo)->Primitive_Count;++i) {
-                    mat_info = asset.matInfo[asset.primInfo[i].matIndex];
-                    tex_info = asset.texInfo[mat_info.TexParams[0].texIndex];
+            bool CreateScene(FbxScene*& pScene) {
+                lRootNode = pScene->GetRootNode();
 
-                    FbxNode* lMesh = CreateHGRMesh(pScene, "Mesh", asset.primInfo[i], 
-                                                   mat_info, tex_info);
-
-                    // Build the node tree.
-                    lRootNode->AddChild(lMesh);
+                // Can you build a node tree?
+                for (auto hgrNode : _assets.Nodes) {
+                    CreateHGRNode(pScene, hgrNode);
                 }
 
                 return true;
             }
 
-            // Mesh -> node
-            // Vertices -> control points
-            // Normal, Diffuse, Ambient -> FbxGeometryElements
-            FbxNode* CreateHGRMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info, 
-                                   hgr::material_info mat_info, hgr::texture_info tex_info) {
-                u32 i{ 0 }; int pos{ -1 }; int tex0{ -1 }; int j{ 0 }; lemmy++;
+            FbxNode* CreateHGRNode(FbxScene*& pScene, hgr::node& hgrNode) { // Recursive Function to create the tree structure
+                if (_uid.contains(hgrNode.name)) {
+                    if (hgrNode.parentIndex == 4294967295) {
+                        return lRootNode->FindChild(hgrNode.name.c_str()); // returns parent node if exists
+                    } else {
+                        FbxNode* lParent = CreateHGRNode(pScene, _assets.Nodes[hgrNode.parentIndex]); // Create or Find Parent Node
+                        return lParent->FindChild(hgrNode.name.c_str());
+                    }
+                }
+
+                // if Node doesn't exist :
+                if (hgrNode.parentIndex == 4294967295) {
+                    FbxNode* lNode = CreateNode(pScene, hgrNode);
+                    lRootNode->AddChild(lNode);
+                    _uid.insert(hgrNode.name);
+                    return lNode;
+                } else {
+                    FbxNode* lParent = CreateHGRNode(pScene, _assets.Nodes[hgrNode.parentIndex]); // Create or Find Parent Node
+                    assert(lParent);
+                    FbxNode* lNode = CreateNode(pScene, hgrNode);
+                    lParent->AddChild(lNode);
+                    _uid.insert(hgrNode.name);
+                    return lNode;
+                }
+            }
+
+            FbxNode* CreateNode(FbxScene*& pScene, hgr::node hgrNode) {
+                FbxNode* lNode = FbxNode::Create(pScene, hgrNode.name.c_str());
+                // lNode->SetNodeAttribute(lMesh); // Decide what the node is...
+                // lNode->SetShadingMode(FbxNode::eTextureShading);
+
+                // Type of NODE
+                switch (hgrNode.classID) {
+                    case hgr::NODE_MESH:
+                        CreateHGRMesh(pScene, _assets.meshInfo[hgrNode.index], lNode);
+                    break;
+
+                    default:
+                    break;
+
+                }
+
+                // TODO: Set Node Transform
+
+                return lNode;
+            }
+
+            void CreateHGRMesh(FbxScene*& pScene, hgr::mesh& hgrMesh, FbxNode*& lNode) {
+                hgr::material_info mat_info;
+                hgr::texture_info tex_info;
+
+                for (u32 i{ 0 };i < hgrMesh.primCount;++i) {
+                    u32 primitiveID = hgrMesh.primIndex[i];
+
+                    mat_info = _assets.matInfo[_assets.primInfo[primitiveID].matIndex];
+                    tex_info = _assets.texInfo[mat_info.TexParams[0].texIndex];
+
+                    FbxMesh* lMesh = CreateMesh(pScene, hgrMesh.name.c_str(), _assets.primInfo[primitiveID],
+                                                   mat_info, tex_info);
+
+                    lNode->SetNodeAttribute(lMesh);
+                    lNode->SetShadingMode(FbxNode::eTextureShading);
+                }
+            }
+
+            FbxMesh* CreateMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info,
+                                hgr::material_info mat_info, hgr::texture_info tex_info) {
+
+                // Mesh -> node
+                // Vertices -> control points
+                // Normal, Diffuse, Ambient -> FbxGeometryElements
+
+
+                u32 i{ 0 }; int pos{ -1 }; int tex0{ -1 }; int j{ 0 };
                 FbxMesh* lMesh = FbxMesh::Create(pScene, pName); // Object Container -> pScene
 
                 std::vector<FbxVector4> lVertices;
@@ -155,7 +219,8 @@ namespace tools {
                 for (i = 0; i < prim_info.formatCount; ++i) {
                     if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
                         pos = i;
-                    } else if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
+                    }
+                    else if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
                         tex0 = i;
                     }
                 }
@@ -187,7 +252,7 @@ namespace tools {
                 //lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eNone);
 
                 // Create UV for Diffuse Channel, Ambient Channel and Emissive Channel [idk if there are any more]
-                
+
                 // Diffuse channel - automatically calculate UV co-ords
                 FbxGeometryElementUV* lUVDiffuseElement = lMesh->CreateElementUV(gDiffuseElementName);
                 FBX_ASSERT(lUVDiffuseElement != NULL);
@@ -200,20 +265,20 @@ namespace tools {
                 for (i = 0; i < prim_info.verts; ++i) {
                     x = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[0];
                     y = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[1];
-                    
-                    //lVectors.push_back({ -y + 1.0, x });
-                    lVectors.push_back({ x, y });
+
+                    lVectors.push_back({ -y + 1.0, x });
+                    //lVectors.push_back({ x, y });
                 }
 
                 for (i = 0; i < prim_info.indices; ++i) {
                     lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i]]);
                 }
-                
+
                 //lUVDiffuseElement->GetIndexArray().SetCount(prim_info.indices); // Resize
 
                 // Create Polygon and Map UVs
                 assert(prim_info.primitiveType == tools::hgr::Mesh::PRIM_TRI);
-                for (i = 0; i < (prim_info.indices/3); i++) // It's a trigon
+                for (i = 0; i < (prim_info.indices / 3); i++) // It's a trigon
                 {
                     // we won't use the default way of assigning textures, as we have
                     // textures on more than just the default (diffuse) channel.
@@ -225,19 +290,13 @@ namespace tools {
 
                         // Update the index array of the UVs for diffuse, ambient and emissive
                         lUVDiffuseElement->GetIndexArray().SetAt(i * 3 + j, j);
-                        // lUVAmbientElement->GetIndexArray().SetAt(i * 4 + j, j);
-                        // lUVEmissiveElement->GetIndexArray().SetAt(i * 4 + j, j);
-
                     }
 
                     lMesh->EndPolygon();
                 }
 
                 // Finalize
-                FbxNode* lNode = FbxNode::Create(pScene, pName);
-                lNode->SetNodeAttribute(lMesh);
-                lNode->SetShadingMode(FbxNode::eTextureShading);
-                lMesh->GenerateNormals(true, false, false);
+                lMesh->GenerateNormals(true, true, true);
 
                 CreateHGRTexture(pScene, lMesh, mat_info, ("textures\\" + (tex_info.name).substr(0, tex_info.name.length() - 4) + ".png").c_str());
                 // if none created, Default material will be applied without textures.
@@ -245,9 +304,10 @@ namespace tools {
                 delete[] lPolygonVertices;
                 lVectors.clear();
                 lVertices.clear();
-                return lNode;
+                return lMesh;
             }
 
+            // TODO: Fix Wrong Blend Mode being used
             void CreateHGRTexture(FbxScene* pScene, FbxMesh* pMesh, hgr::material_info hgrMaterial, const char* texture) {
                 // A texture need to be connected to a property on the material,
                 // so let's use the material (if it exists) or create a new one
@@ -290,7 +350,7 @@ namespace tools {
                         // Add texture for diffuse channel
                         lMaterial->Diffuse.Set(lDiffuseColor);
                         lMaterial->DiffuseFactor.Set(1.);
-                        lMaterial->TransparencyFactor.Set(0.4);
+                        lMaterial->TransparencyFactor.Set(1.);
 
                         lMaterial->ShadingModel.Set(lShadingName);
                         lMaterial->Shininess.Set(0.5);
@@ -305,7 +365,7 @@ namespace tools {
                             } else if (hgrMaterial.Vec4Params[i].param_type == "DIFFUSEC") {
                                 FbxDouble3 lDiffuse(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
                                 lMaterial->Diffuse.Set(lDiffuse);
-                                lMaterial->TransparencyFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
+                                //lMaterial->TransparencyFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
                             } else if (hgrMaterial.Vec4Params[i].param_type == "SPECULARC") {
                                 FbxDouble3 lSpecular(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
                                 lMaterial->Specular.Set(lSpecular);
@@ -453,16 +513,17 @@ namespace tools {
 	} // Anonymous Namespace
 
     void CreateFBX(hgr::assetData& asset, const char* path) {
-        // Initialize
-        Exporter* ex = new Exporter();
-        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, "hgrScene");
-
         // Filter the filename from path
         std::string file = path;
         file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 5);
 
+        // Initialize
+        Exporter* ex = new Exporter();
+        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, file.c_str());
+
         // Create and save fbx
-        ex->CreateScene(gScene, asset);
+        ex->_assets = asset;
+        ex->CreateScene(gScene);
         ex->SaveScene(ex->gSdkManager, gScene, file.c_str(), 0);
 
         // De-allocate memory

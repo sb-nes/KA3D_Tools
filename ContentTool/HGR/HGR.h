@@ -134,6 +134,13 @@ namespace tools::hgr {
 		material_info* matInfo;
 		primitive_info* primInfo;
 
-		std::vector<node> Nodes;
+		mesh* meshInfo;
+		camera* cameraInfo;
+		light* lightInfo;
+		dummy* dummyInfo;
+		shape* shapeinfo;
+		node* otherNodeInfo;
+
+		std::vector<node> Nodes; // This holds the necessary data to refer to stuff
 	};
 }

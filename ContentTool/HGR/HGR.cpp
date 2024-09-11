@@ -357,8 +357,8 @@ namespace tools::hgr {
             memcpy(&(info.parentIndex), at, su32); at += su32; // u32_invalid_id = -1 -> iron-blooded orphan
             SWAP(info.parentIndex, u32);
 
-            info.isEnabled = nodes::NODE_ENABLED & info.nodeFlags;
-            info.classID = (nodes::NODE_CLASS & info.nodeFlags) >> 4;
+            info.isEnabled = NODE_ENABLED & info.nodeFlags;
+            info.classID = (NODE_CLASS & info.nodeFlags);
 
             return true;
         }
@@ -709,17 +709,14 @@ namespace tools::hgr {
             return true;
         }
 
-        bool find_children(std::vector<node>& lNodes) {
+        void find_children(std::vector<node>& lNodes) {
             int i{ 0 }; // if only i hadn't used an iterator
             for (auto lNode : lNodes) {
                 ++i; if (lNode.parentIndex == 4294967295) continue;
-                if (lNode.parentIndex == 0) {
-                    continue;
-                }
 
                 lNodes[lNode.parentIndex].childIndex.push_back(i);
             }
-            return true;
+            return;
         }
 
         bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& size) {
@@ -853,11 +850,11 @@ namespace tools::hgr {
         
         memcpy(&(entityInfo.OtherNodes_Count), at, su32); at += su32;
         entityInfo.OtherNodes_Count = swap_endian<u32>(entityInfo.OtherNodes_Count);
-        node* Nodes = new node[entityInfo.OtherNodes_Count];
+        node* otherNodes = new node[entityInfo.OtherNodes_Count];
         if (entityInfo.OtherNodes_Count > 0) {
             for (u32 i{ 0 };i < entityInfo.OtherNodes_Count; ++i) {
-                read_buffer(at, Nodes[i]);
-                hgrNodes.push_back(Nodes[i]);
+                read_buffer(at, otherNodes[i]);
+                hgrNodes.push_back(otherNodes[i]);
             }
         }
         
@@ -893,8 +890,15 @@ namespace tools::hgr {
         Asset.matInfo = Materials;
         Asset.primInfo = Primitives;
 
-        find_children(hgrNodes);
+        find_children(hgrNodes); // Should I remove it? I'm not using it rn...
         Asset.Nodes = hgrNodes;
+
+        Asset.meshInfo = Meshes;
+        Asset.cameraInfo = Cameras;
+        Asset.lightInfo = Lights;
+        Asset.dummyInfo = Dummies;
+        Asset.shapeinfo = Shapes;
+        Asset.otherNodeInfo = otherNodes;
 
         CreateFBX(Asset, path); // FBX Exporter
 
@@ -933,7 +937,7 @@ namespace tools::hgr {
                 delete[] Shapes[i].paths;
             }
             delete[] Shapes;
-            delete[] Nodes;
+            delete[] otherNodes;
             //delete[] TransformAnimations;
             //delete[] UserProperties;
         }
