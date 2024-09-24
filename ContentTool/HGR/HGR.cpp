@@ -291,10 +291,10 @@ namespace tools::hgr {
                     info[i].bias[2] = uvscalebias[3];
                 }
 
-                // Set Bounds of Primitive - I'm not reading, so i can fix this later in a different area
+                // Set Bounds of Primitive - I'm not reading rn, so i can fix this later in a different area
                 if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
-                    math::float4 boundmin, boundmax;
-                    float boundradius;
+                    //math::float4 boundmin, boundmax;
+                    //float boundradius;
                     //VertexFormat::getBound(&buf[0], df, verts, posscalebias, &boundmin, &boundmax, &boundradius);
                     //prim->setBound(boundmin.xyz(), boundmax.xyz(), boundradius);
                 }
@@ -346,7 +346,7 @@ namespace tools::hgr {
                 if (corrupt) { // Error Case
                     for (u32 j{ 0 };j < p.indices;++j) {
                         if (p.indexData[j] > p.verts) {
-                            p.indexData[j] = p.verts - 1;
+                            p.indexData[j] = (u16)p.verts - 1;
                         }
                     }
                 }
@@ -363,7 +363,7 @@ namespace tools::hgr {
         }
 
         bool read_buffer(const u8*& at, node& info) {
-            u16 size{ 0 }; u32 i{ 0 };
+            u16 size{ 0 }; // u32 i{ 0 };
             memcpy(&size, at, su16); at += su16;
             SWAP(size, u16);
             info.name.assign(at, at + size); at += size; // name
@@ -775,7 +775,6 @@ namespace tools::hgr {
         }
 
         bool read_float3anim(const u8*& at, float3Animation& info) {
-            u16 s{ 0 };
             memcpy(&(info.keyCount), at, su32); at += su32; info.keyCount = swap_endian<s32>(info.keyCount);
 
             info.keys = read_Float4Array16(at, info.keyCount);
@@ -855,7 +854,7 @@ namespace tools::hgr {
                 memcpy(&(info[i].rotKeyRate), at, 1); at += 1;
                 memcpy(&(info[i].sclKeyRate), at, 1); at += 1;
                 memcpy(&(info[i].endBehaviour), at, 1); at += 1;
-
+                
                 assert(info[i].endBehaviour < BehaviourType::BEHAVIOUR_COUNT);
 
                 // not listed in the hgr file format documentation
@@ -1071,23 +1070,21 @@ namespace tools::hgr {
 
         check_id(at, *header);
 
-        //memcpy(&(entityInfo.TransformAnimation_Count), at, su32); at += su32;
-        //entityInfo.TransformAnimation_Count = swap_endian<u32>(entityInfo.TransformAnimation_Count);
-        //transformAnimation* TransformAnimations = new transformAnimation[entityInfo.TransformAnimation_Count];
-        //if (entityInfo.TransformAnimation_Count > 0) {
-        //    for (u32 i{ 0 };i < entityInfo.TransformAnimation_Count; ++i) {
-        //        read_buffer(at, TransformAnimations, entityInfo.TransformAnimation_Count);
-        //    }
-        //}
-        //
-        //check_id(at, *header);
-        //
-        //memcpy(&(entityInfo.UserProperties_Count), at, su32); at += su32;
-        //entityInfo.UserProperties_Count = swap_endian<u32>(entityInfo.UserProperties_Count);
-        //userProperty* UserProperties  = new userProperty[entityInfo.UserProperties_Count];
-        //if (entityInfo.UserProperties_Count > 0) {
-        //    read_buffer(at, UserProperties, entityInfo.UserProperties_Count);
-        //}
+        memcpy(&(entityInfo.TransformAnimation_Count), at, su32); at += su32;
+        entityInfo.TransformAnimation_Count = swap_endian<u32>(entityInfo.TransformAnimation_Count);
+        transformAnimation* TransformAnimations = new transformAnimation[entityInfo.TransformAnimation_Count];
+        if (entityInfo.TransformAnimation_Count > 0) {
+            read_buffer(at, TransformAnimations, entityInfo.TransformAnimation_Count);
+        }
+        
+        check_id(at, *header);
+        
+        memcpy(&(entityInfo.UserProperties_Count), at, su32); at += su32;
+        entityInfo.UserProperties_Count = swap_endian<u32>(entityInfo.UserProperties_Count);
+        userProperty* UserProperties  = new userProperty[entityInfo.UserProperties_Count];
+        if (entityInfo.UserProperties_Count > 0) {
+            read_buffer(at, UserProperties, entityInfo.UserProperties_Count);
+        }
 
         assetData Asset{};
         // Fill Data
