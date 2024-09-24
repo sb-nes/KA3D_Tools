@@ -81,17 +81,17 @@ namespace tools::hgr {
 	};
 
 	struct keyframeSequence {
-		s32					keyCount{};
-		std::string			dataFormat{};
-		f32					scale{};
-		f32					bias[4]{};
-		f32*				keys{};
-		u32					size{};
+		s32											keyCount{};
+		std::string									dataFormat{};
+		f32											scale{};
+		f32											bias[4]{};
+		std::vector<tools::math::float4>			keys{};
+		u32											size{};
 	};
 
 	struct float3Animation {
-		s32					keyCount{};
-		f32*				keys{};
+		s32											keyCount{};
+		std::vector<tools::math::float4>			keys{};
 	};
 
 	struct transformAnimation {
@@ -101,10 +101,11 @@ namespace tools::hgr {
 		u8					sclKeyRate{}; // scale
 		u8					endBehaviour{};
 
-		//keyframeSequence*	posKeyData{};
-		float3Animation*	posKeyData{};
+		keyframeSequence*	posKeyData_uo{};
 		keyframeSequence*	rotKeyData{};
-		//keyframeSequence*	sclKeyData{};
+		keyframeSequence*	sclKeyData_uo{};
+
+		float3Animation*	posKeyData{};
 		float3Animation*	sclKeyData{};
 
 		bool				isOptimized{ false };
@@ -130,9 +131,9 @@ namespace tools::hgr {
 		scene_param_info* scene_param;
 		entity_info* entityInfo;
 
-		texture_info* texInfo;
-		material_info* matInfo;
-		primitive_info* primInfo;
+		std::vector <texture_info> texInfo;
+		std::vector <material_info> matInfo;
+		std::vector <primitive_info> primInfo;
 
 		mesh* meshInfo;
 		camera* cameraInfo;

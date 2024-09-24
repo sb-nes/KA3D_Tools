@@ -4,6 +4,5 @@
 #include "HGR/HGR.h"
 
 namespace tools {
-
-	void CreateFBX(hgr::assetData& asset, const char* path);
+	void CreateFBX(hgr::assetData& asset, const char* path, const char* texpath, const char* outpath);
 }

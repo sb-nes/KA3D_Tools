@@ -24,21 +24,17 @@
 
 // After linking, it may throw warnings regarding pdb symbols being not found. to fix this, either
 // 1) download the symbols from Autodesk's website
-// 2) add '/ignore:4099' to Properties/Configuration Properties/ C/C++ /Command Line
+// 2) add '/ignore:4099' to Properties/Configuration Properties/ Linker /Command Line
 
 namespace tools {
 	namespace {
 
         static const char* gDiffuseElementName = "DiffuseUV";
-        static const char* gAmbientElementName = "AmbientUV";
-        static const char* gEmissiveElementName = "EmissiveUV";
+        // static const char* gAmbientElementName = "AmbientUV";
+        // static const char* gEmissiveElementName = "EmissiveUV";
 
         class Exporter {
         public:
-            FbxManager*             gSdkManager = nullptr;
-            FbxNode*                lRootNode = nullptr;
-            hgr::assetData          _assets;
-            std::set<std::string>   _uid;
 
 #ifdef IOS_REF
 #undef  IOS_REF
@@ -63,7 +59,7 @@ namespace tools {
                 if (gSdkManager) gSdkManager->Destroy();
             }
 
-            // Exports a scene to a file
+            // Exports a scene to an FBX file
             bool SaveScene( FbxManager* pSdkManager, FbxScene* pScene, const char* pFilename, 
                             int pFileFormat, bool pEmbedMedia = false ) {
                 int lMajor, lMinor, lRevision;
@@ -93,8 +89,9 @@ namespace tools {
                     }
                 }
 
+                _outPath = _outPath + "\\" + pFilename;
                 // Initialize the exporter by providing a filename.
-                if (lExporter->Initialize(pFilename, pFileFormat, pSdkManager->GetIOSettings()) == false)
+                if (lExporter->Initialize(_outPath.c_str(), pFileFormat, pSdkManager->GetIOSettings()) == false)
                 {
                     //UI_Printf("Call to FbxExporter::Initialize() failed.");
                     //UI_Printf("Error returned: %s", lExporter->GetStatus().GetErrorString());
@@ -163,25 +160,55 @@ namespace tools {
                 }
             }
 
+            [[nodiscard]]
             FbxNode* CreateNode(FbxScene*& pScene, hgr::node hgrNode) {
                 FbxNode* lNode = FbxNode::Create(pScene, hgrNode.name.c_str());
-                // lNode->SetNodeAttribute(lMesh); // Decide what the node is...
-                // lNode->SetShadingMode(FbxNode::eTextureShading);
 
-                // Type of NODE
+                // TODO: Complete implementation of other types
+                // Type of NODE to add Attribute
                 switch (hgrNode.classID) {
                     case hgr::NODE_MESH:
                         CreateHGRMesh(pScene, _assets.meshInfo[hgrNode.index], lNode);
                     break;
 
-                    default:
+                    case hgr::NODE_CAMERA:
+                        CreateCamera(pScene, _assets.cameraInfo[hgrNode.index], lNode);
                     break;
 
+                    case hgr::NODE_LIGHT:
+                        CreateLight(pScene, _assets.lightInfo[hgrNode.index], lNode);
+                    break;
+
+                    case hgr::NODE_LINES:
+                    break;
+
+                    case hgr::NODE_DUMMY:
+                    break;
+
+                    case hgr::NODE_OTHER:
+                    break;
+
+                    default:
+                        char const* configfile = "Unimplemented Type!";
+                        throw std::runtime_error(std::string("Failed: ") + configfile);
+                    break;
                 }
 
-                // TODO: Set Node Transform
+                SetTransform(lNode, hgrNode.modeltm);
 
                 return lNode;
+            }
+
+            void SetTransform(FbxNode*& lNode, math::float3x4 modeltm)
+            {
+                // TODO: Set Node Transform; Also fix it
+                FbxVector4 Position(modeltm.x[0], modeltm.x[1], modeltm.x[2]);
+                FbxVector4 Rotation(0, 0, 0);
+                FbxVector4 Scale(1.0, 1.0, 1.0);
+
+                lNode->LclTranslation.Set(Position);
+                lNode->LclRotation.Set(Rotation);
+                lNode->LclScaling.Set(Scale);
             }
 
             void CreateHGRMesh(FbxScene*& pScene, hgr::mesh& hgrMesh, FbxNode*& lNode) {
@@ -199,9 +226,12 @@ namespace tools {
 
                     lNode->SetNodeAttribute(lMesh);
                     lNode->SetShadingMode(FbxNode::eTextureShading);
+
+                    CreateHGRTexture(pScene, lMesh, mat_info, (_texPath + "\\" + (tex_info.name).substr(0, tex_info.name.length() - 4) + ".jpg").c_str());
                 }
             }
 
+            [[nodiscard]]
             FbxMesh* CreateMesh(FbxScene* pScene, const char* pName, hgr::primitive_info prim_info,
                                 hgr::material_info mat_info, hgr::texture_info tex_info) {
 
@@ -284,7 +314,9 @@ namespace tools {
                     // textures on more than just the default (diffuse) channel.
                     lMesh->BeginPolygon(-1, -1, false);
 
-                    for (j = 0; j < 3; j++) {
+                    // Invert Faces / Normals Direction
+                    // Writing in inverse order
+                    for (j = 2; j >= 0; --j) {
                         // this function points 
                         lMesh->AddPolygon(lPolygonVertices[i * 3 + j]); // For each index
 
@@ -295,26 +327,19 @@ namespace tools {
                     lMesh->EndPolygon();
                 }
 
-                // Finalize
-                lMesh->GenerateNormals(true, true, true);
-
-                CreateHGRTexture(pScene, lMesh, mat_info, ("textures\\" + (tex_info.name).substr(0, tex_info.name.length() - 4) + ".png").c_str());
-                // if none created, Default material will be applied without textures.
-
                 delete[] lPolygonVertices;
                 lVectors.clear();
                 lVertices.clear();
                 return lMesh;
             }
 
-            // TODO: Fix Wrong Blend Mode being used
+            // Fix Wrong Blend Mode being used -> Occurs due to using PNG instead of JPG
             void CreateHGRTexture(FbxScene* pScene, FbxMesh* pMesh, hgr::material_info hgrMaterial, const char* texture) {
-                // A texture need to be connected to a property on the material,
-                // so let's use the material (if it exists) or create a new one
                 FbxSurfacePhong* lMaterial = NULL;
 
                 //get the node of mesh, add material for it.
                 FbxNode* lNode = pMesh->GetNode();
+                lNode->mCullingType = FbxNode::eCullingOnCCW;
                 if (lNode) {
                     lMaterial = lNode->GetSrcObject<FbxSurfacePhong>(0);
                     if (lMaterial == NULL) {
@@ -328,33 +353,20 @@ namespace tools {
 
                         // Create a layer element material to handle proper mapping.
                         FbxLayerElementMaterial* lLayerElementMaterial = FbxLayerElementMaterial::Create(pMesh, lMaterialName.Buffer());
-
-                        // This allows us to control where the materials are mapped.  Using eAllSame
-                        // means that all faces/polygons of the mesh will be assigned the same material.
                         lLayerElementMaterial->SetMappingMode(FbxLayerElement::eAllSame);
                         lLayerElementMaterial->SetReferenceMode(FbxLayerElement::eIndexToDirect);
 
-                        // Save the material on the layer
                         lLayer->SetMaterials(lLayerElementMaterial);
-
-                        // Add an index to the lLayerElementMaterial.  Since we have only one, and are using eAllSame mapping mode,
-                        // we only need to add one.
                         lLayerElementMaterial->GetIndexArray().Add(0);
 
                         lMaterial = FbxSurfacePhong::Create(pScene, lMaterialName.Buffer());
 
-                        // Generate primary and secondary colors.
-                        lMaterial->Emissive.Set(lBlack);
-                        lMaterial->Ambient.Set(lRed);
-                        lMaterial->AmbientFactor.Set(1.);
-                        // Add texture for diffuse channel
-                        lMaterial->Diffuse.Set(lDiffuseColor);
-                        lMaterial->DiffuseFactor.Set(1.);
-                        lMaterial->TransparencyFactor.Set(1.);
+                        lMaterial->AmbientFactor.Set(1.0);
+                        lMaterial->DiffuseFactor.Set(1.0);
+                        lMaterial->TransparencyFactor.Set(0.4);
 
                         lMaterial->ShadingModel.Set(lShadingName);
                         lMaterial->Shininess.Set(0.5);
-                        lMaterial->Specular.Set(lBlack);
                         lMaterial->SpecularFactor.Set(0.3);
 
                         for (int i = 0; i < hgrMaterial.vec4ParamCount;++i) {
@@ -369,7 +381,7 @@ namespace tools {
                             } else if (hgrMaterial.Vec4Params[i].param_type == "SPECULARC") {
                                 FbxDouble3 lSpecular(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
                                 lMaterial->Specular.Set(lSpecular);
-                                // lMaterial->SpecularFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
+                                lMaterial->SpecularFactor.Set(hgrMaterial.Vec4Params[i].value[3]);
                             } else assert(false && "Vector 4 Parameter not implemented!");
                         }
 
@@ -381,10 +393,10 @@ namespace tools {
                     }
                 }
 
-                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, hgrMaterial.name.c_str());
+                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, "Diffuse Texture");
 
                 // Set texture properties.
-                lTexture->SetFileName(texture); // Resource file is in current directory.
+                lTexture->SetFileName(texture);
                 lTexture->SetTextureUse(FbxTexture::eStandard);
                 lTexture->SetMappingType(FbxTexture::eUV);
                 lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
@@ -400,131 +412,87 @@ namespace tools {
                 if (lMaterial) lMaterial->Diffuse.ConnectSrcObject(lTexture);
             }
 
-            // Create texture and material for cube.
-            void CreateTexture(FbxScene* pScene, FbxMesh* pMesh)
+            void CreateCamera(FbxScene*& pScene, hgr::camera& hgrCamera, FbxNode*& lNode)
             {
-                // A texture need to be connected to a property on the material,
-                // so let's use the material (if it exists) or create a new one
-                FbxSurfacePhong* lMaterial = NULL;
+                if (!pScene) return;
 
-                //get the node of mesh, add material for it.
-                FbxNode* lNode = pMesh->GetNode();
-                if (lNode) {
-                    lMaterial = lNode->GetSrcObject<FbxSurfacePhong>(0);
-                    if (lMaterial == NULL) {
-                        FbxString lMaterialName = "toto";
-                        FbxString lShadingName = "Phong";
-                        FbxDouble3 lBlack(0.0, 0.0, 0.0);
-                        FbxDouble3 lRed(1.0, 0.0, 0.0);
-                        FbxDouble3 lDiffuseColor(0.75, 0.75, 0.0);
+                FbxCamera* lCamera = FbxCamera::Create(pScene, hgrCamera.name.c_str());
+                lNode->SetNodeAttribute(lCamera);
 
-                        FbxLayer* lLayer = pMesh->GetLayer(0);
+                lCamera->SetFormat(FbxCamera::eHD);
+                lCamera->SetApertureFormat(FbxCamera::e16mmTheatrical);
+                lCamera->SetApertureMode(FbxCamera::eVertical);
+                //set camera FOV
+                double lFOV = hgrCamera.FOV; // is it degrees or radians
+                lCamera->FieldOfViewY.Set(lFOV); // Degrees
+                double lFocalLength = lCamera->ComputeFocalLength(lFOV);
+                lCamera->FocalLength.Set(lFocalLength);
 
-                        // Create a layer element material to handle proper mapping.
-                        FbxLayerElementMaterial* lLayerElementMaterial = FbxLayerElementMaterial::Create(pMesh, lMaterialName.Buffer());
-
-                        // This allows us to control where the materials are mapped.  Using eAllSame
-                        // means that all faces/polygons of the mesh will be assigned the same material.
-                        lLayerElementMaterial->SetMappingMode(FbxLayerElement::eAllSame);
-                        lLayerElementMaterial->SetReferenceMode(FbxLayerElement::eIndexToDirect);
-
-                        // Save the material on the layer
-                        lLayer->SetMaterials(lLayerElementMaterial);
-
-                        // Add an index to the lLayerElementMaterial.  Since we have only one, and are using eAllSame mapping mode,
-                        // we only need to add one.
-                        lLayerElementMaterial->GetIndexArray().Add(0);
-
-                        lMaterial = FbxSurfacePhong::Create(pScene, lMaterialName.Buffer());
-
-                        // Generate primary and secondary colors.
-                        lMaterial->Emissive.Set(lBlack);
-                        lMaterial->Ambient.Set(lRed);
-                        lMaterial->AmbientFactor.Set(1.);
-                        // Add texture for diffuse channel
-                        lMaterial->Diffuse.Set(lDiffuseColor);
-                        lMaterial->DiffuseFactor.Set(1.);
-                        lMaterial->TransparencyFactor.Set(0.4);
-                        lMaterial->ShadingModel.Set(lShadingName);
-                        lMaterial->Shininess.Set(0.5);
-                        lMaterial->Specular.Set(lBlack);
-                        lMaterial->SpecularFactor.Set(0.3);
-                        lNode->AddMaterial(lMaterial);
-                    }
-                }
-
-                FbxFileTexture* lTexture = FbxFileTexture::Create(pScene, "Diffuse Texture");
-
-                // Set texture properties.
-                lTexture->SetFileName("scene03.jpg"); // Resource file is in current directory.
-                lTexture->SetTextureUse(FbxTexture::eStandard);
-                lTexture->SetMappingType(FbxTexture::eUV);
-                lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-                lTexture->SetSwapUV(false);
-                lTexture->SetTranslation(0.0, 0.0);
-                lTexture->SetScale(1.0, 1.0);
-                lTexture->SetRotation(0.0, 0.0);
-                lTexture->UVSet.Set(FbxString(gDiffuseElementName)); // Connect texture to the proper UV
-
-
-                // don't forget to connect the texture to the corresponding property of the material
-                if (lMaterial)
-                    lMaterial->Diffuse.ConnectSrcObject(lTexture);
-
-                lTexture = FbxFileTexture::Create(pScene, "Ambient Texture");
-               
-                // Set texture properties.
-                lTexture->SetFileName("gradient.jpg"); // Resource file is in current directory.
-                lTexture->SetTextureUse(FbxTexture::eStandard);
-                lTexture->SetMappingType(FbxTexture::eUV);
-                lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-                lTexture->SetSwapUV(false);
-                lTexture->SetTranslation(0.0, 0.0);
-                lTexture->SetScale(1.0, 1.0);
-                lTexture->SetRotation(0.0, 0.0);
-                lTexture->UVSet.Set(FbxString(gAmbientElementName)); // Connect texture to the proper UV
-               
-                // don't forget to connect the texture to the corresponding property of the material
-                if (lMaterial)
-                    lMaterial->Ambient.ConnectSrcObject(lTexture);
-               
-                lTexture = FbxFileTexture::Create(pScene, "Emissive Texture");
-               
-                // Set texture properties.
-                lTexture->SetFileName("spotty.jpg"); // Resource file is in current directory.
-                lTexture->SetTextureUse(FbxTexture::eStandard);
-                lTexture->SetMappingType(FbxTexture::eUV);
-                lTexture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-                lTexture->SetSwapUV(false);
-                lTexture->SetTranslation(0.0, 0.0);
-                lTexture->SetScale(1.0, 1.0);
-                lTexture->SetRotation(0.0, 0.0);
-                lTexture->UVSet.Set(FbxString(gEmissiveElementName)); // Connect texture to the proper UV
-               
-                // don't forget to connect the texture to the corresponding property of the material
-                if (lMaterial)
-                    lMaterial->Emissive.ConnectSrcObject(lTexture);
+                // View Frustum Data
+                // hgrCamera.front & hgrCamera.back
             }
 
-        private:
+            void CreateLight(FbxScene*& pScene, hgr::light& hgrLight, FbxNode*& lNode)
+            {
+                FbxLight* lLight = FbxLight::Create(pScene, hgrLight.name.c_str());
 
+                lLight->LightType.Set(FbxLight::eSpot);
+                lLight->CastLight.Set(true);
+
+                // TODO: Add hgr data
+                lLight->Color.Set(FbxDouble3(1.0, 0.0, 0.0));
+                lLight->Intensity.Set(33.0);
+                lLight->OuterAngle.Set(90.0);
+                lLight->Fog.Set(100.0);
+
+                // extras
+                lLight->DrawGroundProjection.Set(true);
+                lLight->DrawVolumetricLight.Set(true);
+                lLight->DrawFrontFacingVolumetricLight.Set(false);
+
+                lNode->SetNodeAttribute(lLight);
+            }
+
+            // _asset
+            void SetAssets(hgr::assetData assets) { _assets = assets; }
+
+            // _texPath
+            void SetTexPath(std::string texPath) { _texPath = texPath; }
+
+            // _outPath
+            void SetOutPath(std::string outPath) { _outPath = outPath; }
+
+            // gSdkManager
+            [[nodiscard]]
+            FbxManager* GetFbxManager() { return gSdkManager; }
+
+        private:
+            FbxNode*                        lRootNode = nullptr;
+            std::set<std::string>           _uid;
+            FbxManager*                     gSdkManager = nullptr;
+            hgr::assetData                  _assets;
+            std::string                     _texPath;
+            std::string                     _outPath;
         };
 
 	} // Anonymous Namespace
 
-    void CreateFBX(hgr::assetData& asset, const char* path) {
+    void CreateFBX(hgr::assetData& asset, const char* path, const char* texpath, const char* outpath) {
         // Filter the filename from path
         std::string file = path;
         file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 5);
 
         // Initialize
         Exporter* ex = new Exporter();
-        FbxScene* gScene = FbxScene::Create(ex->gSdkManager, file.c_str());
+        FbxScene* gScene = FbxScene::Create(ex->GetFbxManager(), file.c_str());
 
         // Create and save fbx
-        ex->_assets = asset;
+        //ex->_assets = asset;
+        ex->SetAssets(asset);
+        ex->SetTexPath(texpath);
+        ex->SetOutPath(outpath);
         ex->CreateScene(gScene);
-        ex->SaveScene(ex->gSdkManager, gScene, file.c_str(), 0);
+        ex->SaveScene(ex->GetFbxManager(), gScene, file.c_str(), 0);
 
         // De-allocate memory
         gScene->Destroy();

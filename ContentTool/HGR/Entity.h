@@ -134,4 +134,18 @@ namespace tools::hgr {
 		/** Number of supported behaviours. */
 		BEHAVIOUR_COUNT
 	};
+
+	enum LightType
+	{
+		/** Unknown light type. */
+		TYPE_UNKNOWN,
+		/** Distant light source (like sun). */
+		TYPE_DIRECTIONAL,
+		/** Omnidirectional point light source (like a candle). Default. */
+		TYPE_OMNI,
+		/** Spot light source (like a lamp). */
+		TYPE_SPOT,
+		/** Number of different types. */
+		TYPE_COUNT
+	};
 }
