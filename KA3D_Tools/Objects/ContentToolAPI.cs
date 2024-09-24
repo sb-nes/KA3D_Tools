@@ -7,10 +7,9 @@ namespace KA3D_Tools
         private const string _contentTool = "ContentTool.dll";
 
         [DllImport(_contentTool, CharSet = CharSet.Ansi)]
-        public static extern bool StoreData(string path);
-
-        public static void StoreHGR(string inputPath) {
-            StoreData(inputPath);
+        public static extern bool StoreData(string path, string texpath, string outpath);
+        public static bool StoreHGR(string inputPath, string texturePath, string outputPath) {
+            return StoreData(inputPath, texturePath, outputPath);
         }
     }
 }

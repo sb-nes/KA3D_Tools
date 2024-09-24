@@ -9,12 +9,15 @@
 #include "../FBXExporter.h"
 
 namespace tools::hgr {
-	namespace {
+
+    namespace {
         constexpr u32 su16{ sizeof(u16) }; // 2 bytes for reading
         constexpr u32 su32{ sizeof(u32) }; // 4 bytes for reading
 
         u16 version{ 0 };
         bool corrupt{ false };
+        std::vector<node> entityNodes;
+        entity_info entityInfo{};
 
         constexpr bool is_big_endian = (std::endian::native == std::endian::big);
 
@@ -31,7 +34,7 @@ namespace tools::hgr {
 
         bool check_id(const u8*& at, hgr_info& info) {
             u32 id{ ++info.check_id };
-            memcpy(&(info.check_id), at, su32); at += su32; 
+            memcpy(&(info.check_id), at, su32); at += su32;
             //info.check_id = swap_endian<u32>(info.check_id);
             SWAP(info.check_id, u32);
 
@@ -58,13 +61,16 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, texture_info*& info, u32& count) {
+        bool read_buffer(const u8*& at, std::vector<texture_info>& info, u32& count) {
             u16 size{ 0 };
+            texture_info t{};
             for (u32 i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
-                SWAP(size,u16);
-                info[i].name.assign(at, at + size); at += size;
-                memcpy(&(info[i].type), at, su32); at += su32;
+                memcpy(&size, at, su16); at += su16;
+                SWAP(size, u16);
+                t.name.assign(at, at + size); at += size;
+                memcpy(&(t.type), at, su32); at += su32;
+
+                info.emplace_back(t);
             }
             return true;
         }
@@ -72,12 +78,16 @@ namespace tools::hgr {
         bool read_buffer(const u8*& at, texParam*& info, u8& count) {
             u16 size{ 0 };
             for (int i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].param_type.assign(at, at + size); at += size; // param Type
 
-                memcpy(&(info[i].texIndex), at, su16); at += su16; 
+                memcpy(&(info[i].texIndex), at, su16); at += su16;
                 SWAP(info[i].texIndex, u16);
+                if (info[i].texIndex > entityInfo.Texture_Count) {
+                    assert(info[i].texIndex > entityInfo.Texture_Count);
+                    return false;
+                }
             }
             return true;
         }
@@ -85,7 +95,7 @@ namespace tools::hgr {
         bool read_buffer(const u8*& at, vec4Param*& info, u8& count) {
             u16 size{ 0 };
             for (int i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].param_type.assign(at, at + size); at += size; // param Type
 
@@ -93,16 +103,16 @@ namespace tools::hgr {
                     if (info[i].param_type == "AM>9ENTC") {
                         info[i].param_type = "AMBIENTC";
                     }
-                    if (info[i].param_type == "SPEC³¼?RC"){
+                    if (info[i].param_type == "SPEC³¼?RC") {
                         info[i].param_type = "SPECULARC";
                     }
-                    if (info[i].param_type == "S°½ÃULARC"){
+                    if (info[i].param_type == "S°½ÃULARC") {
                         info[i].param_type = "SPECULARC";
                     }
-                    
+
                 }
 
-                memcpy(&(info[i].value), at, su32 * 4); at += su32 * 4; 
+                memcpy(&(info[i].value), at, su32 * 4); at += su32 * 4;
                 SWAP(info[i].value[0], f32);
                 SWAP(info[i].value[1], f32);
                 SWAP(info[i].value[2], f32);
@@ -114,44 +124,54 @@ namespace tools::hgr {
         bool read_buffer(const u8*& at, floatParam*& info, u8& count) {
             u16 size{ 0 };
             for (int i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].param_type.assign(at, at + size); at += size; // param Type
 
-                memcpy(&(info[i].value), at, su32); at += su32; 
+                memcpy(&(info[i].value), at, su32); at += su32;
                 SWAP(info[i].value, f32);
             }
             return true;
         }
 
-        bool read_buffer(const u8*& at, material_info*& info, u32& count) {
+        bool read_buffer(const u8*& at, std::vector<material_info>& info, u32& count) {
             u16 size{ 0 };
+            material_info m{};
             for (u32 i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
-                info[i].name.assign(at, at + size); at += size; // name
+                m.name.assign(at, at + size); at += size; // name
 
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
-                info[i].shaderName.assign(at, at + size); at += size; // shaderName
+                m.shaderName.assign(at, at + size);
+                if (corrupt) {
+                    if (size == 249 && m.shaderName.starts_with("Ó")) {
+                        size = 9;
+                        m.shaderName.assign(at, at + size);
+                    }
+                }
+                at += size; // shaderName
 
-                memcpy(&(info[i].lightmap_info), at, su32); at += su32; 
-                SWAP(info[i].lightmap_info, s32);
+                memcpy(&(m.lightmap_info), at, su32); at += su32;
+                SWAP(m.lightmap_info, s32);
 
-                memcpy(&(info[i].texParamCount), at, 1); at += 1;
-                SWAP(info[i].texParamCount, u8);
-                info[i].TexParams = new texParam[info[i].texParamCount];
-                read_buffer(at, info[i].TexParams, info[i].texParamCount);
+                memcpy(&(m.texParamCount), at, 1); at += 1;
+                SWAP(m.texParamCount, u8);
+                m.TexParams = new texParam[m.texParamCount];
+                assert(read_buffer(at, m.TexParams, m.texParamCount));
 
-                memcpy(&(info[i].vec4ParamCount), at, 1); at += 1; 
-                SWAP(info[i].vec4ParamCount, u8);
-                info[i].Vec4Params = new vec4Param[info[i].vec4ParamCount];
-                read_buffer(at, info[i].Vec4Params, info[i].vec4ParamCount);
+                memcpy(&(m.vec4ParamCount), at, 1); at += 1;
+                SWAP(m.vec4ParamCount, u8);
+                m.Vec4Params = new vec4Param[m.vec4ParamCount];
+                read_buffer(at, m.Vec4Params, m.vec4ParamCount);
 
-                memcpy(&(info[i].floatParamCount), at, 1); at += 1; 
-                SWAP(info[i].floatParamCount, u8);
-                info[i].FloatParams = new floatParam[info[i].floatParamCount];
-                read_buffer(at, info[i].FloatParams, info[i].floatParamCount);
+                memcpy(&(m.floatParamCount), at, 1); at += 1;
+                SWAP(m.floatParamCount, u8);
+                m.FloatParams = new floatParam[m.floatParamCount];
+                read_buffer(at, m.FloatParams, m.floatParamCount);
+
+                info.emplace_back(m);
             }
             return true;
         }
@@ -188,19 +208,33 @@ namespace tools::hgr {
                         info[i].format.assign(at, at + size); at += size;
                         continue;
                     }
+                    if (info[i].type == "ÄÌ_PO") {
+                        size = 11;
+                        info[i].type = "DT_POSITION";
+                    }
+                    if (info[i].type == "DT_TEX\x10") {
+                        info[i].type = "DT_TEX0";
+                    }
                 }
 
                 at += size;
 
                 memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
-                info[i].format.assign(at, at + size); at += size; // format without "DF_" prefix
+                info[i].format.assign(at, at + size); // format without "DF_" prefix
                 //info[i].format = "DF_" + info[i].format;
                 if (corrupt) { // ERROR CASES
                     if (info[i].format == "V3_Ñ\n") {
                         info[i].format = "V3_16";
                     }
+                    if (info[i].format.substr(0, 3) == "VîË") {
+                        info[i].format = "V2_16";
+                    }
+                    if (info[i].format == "VîË") {
+                        info[i].format = "V2_16";
+                    }
                 }
+                at += size;
             }
             return true;
         }
@@ -209,8 +243,8 @@ namespace tools::hgr {
             u32 size{ 0 };
             u32 length{ 0 };
 
-            f32 posscalebias[4]{1,0,0,0};
-            f32 uvscalebias[4]{1,0,0,0};
+            f32 posscalebias[4]{ 1,0,0,0 };
+            f32 uvscalebias[4]{ 1,0,0,0 };
             if (version >= 190) {
                 // posscalebias = readFloat4();
                 memcpy(&(posscalebias), at, su32 * 4); at += su32 * 4;
@@ -232,7 +266,7 @@ namespace tools::hgr {
                     at += su32 * 4;
                 }
 
-                size = VertexFormat::getDataDim(VertexFormat::toDataFormat( formats[i].format.c_str() ));
+                size = VertexFormat::getDataDim(VertexFormat::toDataFormat(formats[i].format.c_str()));
                 if (formats[i].type == "DT_POSITIOJ") {
                     formats[i].type = "DT_POSITION";
                 }
@@ -254,17 +288,18 @@ namespace tools::hgr {
                     info[i].bias[0] = posscalebias[1];
                     info[i].bias[1] = posscalebias[2];
                     info[i].bias[2] = posscalebias[3];
-                } else if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
+                }
+                else if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_TEX0) {
                     info[i].scale = uvscalebias[0];
                     info[i].bias[0] = uvscalebias[1];
                     info[i].bias[1] = uvscalebias[2];
                     info[i].bias[2] = uvscalebias[3];
                 }
 
-                // Set Bounds of Primitive - I'm not reading, so i can fix this later in a different area
+                // Set Bounds of Primitive - I'm not reading rn, so i can fix this later in a different area
                 if (VertexFormat::toDataType(formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
-                    math::float4 boundmin, boundmax;
-                    float boundradius;
+                    //math::float4 boundmin, boundmax;
+                    //float boundradius;
                     //VertexFormat::getBound(&buf[0], df, verts, posscalebias, &boundmin, &boundmax, &boundradius);
                     //prim->setBound(boundmin.xyz(), boundmax.xyz(), boundradius);
                 }
@@ -274,69 +309,73 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, primitive_info*& info, u32& count) {
+        // TODO : Fix UV Mapping
+        bool read_buffer(const u8*& at, std::vector<primitive_info>& info, u32& count) {
+            primitive_info p{};
             for (u32 i{ 0 };i < count;++i) {
                 if (version < 190) {
-                    memcpy(&(info[i].verts), at, su16); at += su16;
-                    SWAP(info[i].verts, u32);
-                    memcpy(&(info[i].indices), at, su16); at += su16;
-                    SWAP(info[i].indices, u32);
-                } else {
-                    memcpy(&(info[i].verts), at, su32); at += su32;
-                    SWAP(info[i].verts, u32);
-                    memcpy(&(info[i].indices), at, su32); at += su32;
-                    SWAP(info[i].indices, u32);
+                    memcpy(&(p.verts), at, su16); at += su16;
+                    SWAP(p.verts, u32);
+                    memcpy(&(p.indices), at, su16); at += su16;
+                    SWAP(p.indices, u32);
+                }
+                else {
+                    memcpy(&(p.verts), at, su32); at += su32;
+                    SWAP(p.verts, u32);
+                    memcpy(&(p.indices), at, su32); at += su32;
+                    SWAP(p.indices, u32);
                 }
 
-                memcpy(&(info[i].formatCount), at, 1); at += 1;
-                info[i].formats = new vertFormat[info[i].formatCount]; 
-                info[i].vArray = new vertArray[info[i].formatCount];
+                memcpy(&(p.formatCount), at, 1); at += 1;
+                p.formats = new vertFormat[p.formatCount];
+                p.vArray = new vertArray[p.formatCount];
 
-                read_buffer(at, info[i].formats, info[i].formatCount);
+                read_buffer(at, p.formats, p.formatCount);
 
-                if (info[i].verts == 24 && info[i].indices == 162 && corrupt) { // Error Case
-                    info[i].verts = 56;
+                if (p.verts == 24 && p.indices == 162 && corrupt) { // Error Case
+                    p.verts = 56;
                 }
 
-                memcpy(&(info[i].matIndex), at, su16); at += su16;
-                SWAP(info[i].matIndex, u16);
-                memcpy(&(info[i].primitiveType), at, su16); at += su16; // Primitive::PRIM_TRI -> Default
-                SWAP(info[i].primitiveType, u16);
+                memcpy(&(p.matIndex), at, su16); at += su16;
+                SWAP(p.matIndex, u16);
+                memcpy(&(p.primitiveType), at, su16); at += su16; // Primitive::PRIM_TRI -> Default
+                SWAP(p.primitiveType, u16);
 
-                read_buffer(at, info[i].vArray, info[i].formatCount, info[i].verts, info[i].formats);
+                read_buffer(at, p.vArray, p.formatCount, p.verts, p.formats);
 
                 // WARNING: Endianess dependent read
-                info[i].indexData = new u16[info[i].indices];
-                memcpy(info[i].indexData, at, su16 * info[i].indices); at += su16 * info[i].indices;
-                //for (u32 j{ 0 };j < info[i].indices;++j) {
-                //    SWAP(info[i].indexData[j], u16);
+                p.indexData = new u16[p.indices];
+                memcpy(p.indexData, at, su16 * p.indices); at += su16 * p.indices;
+                //for (u32 j{ 0 };j < p.indices;++j) {
+                //    SWAP(p.indexData[j], u16);
                 //}
                 if (corrupt) { // Error Case
-                    for (u32 j{ 0 };j < info[i].indices;++j) {
-                        if (info[i].indexData[j] > info[i].verts) {
-                            info[i].indexData[j] = info[i].verts - 1;
+                    for (u32 j{ 0 };j < p.indices;++j) {
+                        if (p.indexData[j] > p.verts) {
+                            p.indexData[j] = (u16)p.verts - 1;
                         }
                     }
                 }
-                
-                memcpy(&(info[i].usedBoneCount), at, 1); at += 1; 
-                assert(info[i].usedBoneCount <= MAX_BONES && ("Failed to load scene. Too many bones: "+i));
 
-                info[i].usedBones = new u8[info[i].usedBoneCount];
-                memcpy(info[i].usedBones, at, info[i].usedBoneCount); at += info[i].usedBoneCount;
+                memcpy(&(p.usedBoneCount), at, 1); at += 1;
+                assert(p.usedBoneCount <= MAX_BONES && ("Failed to load scene. Too many bones: " + i));
+
+                p.usedBones = new u8[p.usedBoneCount];
+                memcpy(p.usedBones, at, p.usedBoneCount); at += p.usedBoneCount;
+
+                info.emplace_back(p);
             }
             return true;
         }
 
         bool read_buffer(const u8*& at, node& info) {
             u16 size{ 0 }; u32 i{ 0 };
-            memcpy(&size, at, su16); at += su16; 
+            memcpy(&size, at, su16); at += su16;
             SWAP(size, u16);
             info.name.assign(at, at + size); at += size; // name
 
-            // model tm
-            for (i = 0;i < 3;++i) {
-                memcpy(&info.modeltm.x[i], at, su32); at += su32; 
+            for (i = 0;i < 3;++i) { // 3 rows 4 columns
+                memcpy(&info.modeltm.x[i], at, su32); at += su32; // Pos
                 memcpy(&info.modeltm.y[i], at, su32); at += su32;
                 memcpy(&info.modeltm.z[i], at, su32); at += su32;
                 memcpy(&info.modeltm.w[i], at, su32); at += su32;
@@ -354,6 +393,9 @@ namespace tools::hgr {
 
             memcpy(&(info.parentIndex), at, su32); at += su32; // u32_invalid_id = -1 -> iron-blooded orphan
             SWAP(info.parentIndex, u32);
+
+            info.isEnabled = NODE_ENABLED & info.nodeFlags;
+            info.classID = (NODE_CLASS & info.nodeFlags);
 
             return true;
         }
@@ -379,21 +421,29 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, mesh*& info, u32& count) {
-            u32 j{ 0 };
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, mesh*& info, u32& count) {
+            u32 j{ 0 }; node x;
+            entityNodes.clear();
+
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].primCount), at, su32); at += su32;
                 SWAP(info[i].primCount, u32);
-                
+
                 if (info[i].primCount > 0) {
                     info[i].primIndex = new u32[info[i].primCount];
                     memcpy(info[i].primIndex, at, su32 * info[i].primCount); at += su32 * info[i].primCount;
@@ -401,7 +451,7 @@ namespace tools::hgr {
                         SWAP(info[i].primIndex[j], u32);
                     }
                 }
-                
+
                 memcpy(&(info[i].meshboneCount), at, su32); at += su32;
                 SWAP(info[i].meshboneCount, u32);
 
@@ -413,20 +463,28 @@ namespace tools::hgr {
                 }
             }
 
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, camera*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, camera*& info, u32& count) {
+            node x;
+            entityNodes.clear();
+
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].front), at, su32); at += su32;
                 SWAP(info[i].front, f32);
@@ -435,27 +493,34 @@ namespace tools::hgr {
                 memcpy(&(info[i].FOV), at, su32); at += su32;
                 SWAP(info[i].FOV, f32);
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, light*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, light*& info, u32& count) {
+            node x;
+            entityNodes.clear();
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&info[i].colour.x, at, su32 * 3); at += su32 * 3;
                 for (u32 j = 0;j < 3;++j) {
                     SWAP(info[i].colour.x[j], f32);
                 }
 
-                memcpy(&(info[i].reserved1), at, su32); at += su32; 
+                memcpy(&(info[i].reserved1), at, su32); at += su32;
                 SWAP(info[i].reserved1, f32);
                 memcpy(&(info[i].reserved2), at, su32); at += su32;
                 SWAP(info[i].reserved2, f32);
@@ -470,21 +535,28 @@ namespace tools::hgr {
                 memcpy(&(info[i].type), at, 1); at += 1;
                 SWAP(info[i].type, u8);
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
-        bool read_buffer(const u8*& at, dummy*& info, u32& count) {
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, dummy*& info, u32& count) {
             u32 j{ 0 };
-            node* Node = new node();
+            node x;
+            entityNodes.clear();
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].boxMin.x), at, su32 * 3); at += su32 * 3;
                 for (j = 0;j < 3;++j) {
@@ -495,8 +567,7 @@ namespace tools::hgr {
                     SWAP(info[i].boxMax.x[j], f32);
                 }
             }
-            delete Node;
-            return true;
+            return entityNodes;
         }
 
         bool read_buffer(const u8*& at, line& info) {
@@ -523,17 +594,25 @@ namespace tools::hgr {
             return true;
         }
 
-        bool read_buffer(const u8*& at, shape*& info, u32& count) {
-            node* Node = new node();
+        [[nodiscard]]
+        std::vector<node> read_buffer(const u8*& at, shape*& info, u32& count) {
+            node x;
+            entityNodes.clear();
             s32 j{ 0 };
             for (u32 i{ 0 };i < count;++i) {
-                read_buffer(at, *Node);
+                read_buffer(at, x);
                 // Assign Node Values
-                info[i].name = Node->name;
-                info[i].modeltm = Node->modeltm;
-                info[i].nodeFlags = Node->nodeFlags;
-                info[i].id = Node->id;
-                info[i].parentIndex = Node->parentIndex;
+                info[i].name = x.name;
+                info[i].modeltm = x.modeltm;
+                info[i].nodeFlags = x.nodeFlags;
+                info[i].id = x.id;
+                info[i].parentIndex = x.parentIndex;
+                info[i].childIndex = x.childIndex;
+                info[i].isEnabled = x.isEnabled;
+                info[i].classID = x.classID;
+
+                info[i].index = i;
+                entityNodes.push_back({ info[i].name, info[i].modeltm, info[i].nodeFlags, info[i].id, info[i].parentIndex, info[i].childIndex, info[i].isEnabled, info[i].classID, info[i].index });
 
                 memcpy(&(info[i].lineCount), at, su32); at += su32;
                 SWAP(info[i].lineCount, s32);
@@ -550,7 +629,153 @@ namespace tools::hgr {
                     read_buffer(at, info[i].paths[j]);
                 }
             }
-            delete Node;
+            return entityNodes;
+        }
+
+        tools::math::float4 readFloat4(const u8*& at) {
+            tools::math::float4 obj;
+
+            memcpy(&(obj.x), at, su32); at += su32;
+            obj.x = swap_endian<f32>(obj.x);
+
+            memcpy(&(obj.y), at, su32); at += su32;
+            obj.y = swap_endian<f32>(obj.y);
+
+            memcpy(&(obj.z), at, su32); at += su32;
+            obj.z = swap_endian<f32>(obj.z);
+
+            memcpy(&(obj.w), at, su32); at += su32;
+            obj.w = swap_endian<f32>(obj.w);
+
+            return obj;
+        }
+
+        std::vector<tools::math::float4> 
+        read_Float4Array16(const u8*& at, s32 count) {
+
+            std::vector<tools::math::float4> out;
+            out.reserve(count);
+
+            if (count > 2) {
+                tools::math::float4 minv = readFloat4(at);
+                tools::math::float4 maxv = readFloat4(at);
+
+                tools::math::float4 delta;
+                delta.x = maxv.x - minv.x;
+                delta.y = maxv.y - minv.y;
+                delta.z = maxv.z - minv.z;
+                delta.w = maxv.w - minv.w;
+
+                tools::math::float4 zeta;
+                for (int i = 0; i < count; ++i)
+                {
+                    u16 xi; float x;
+
+                    // x
+                    memcpy(&xi, at, su16); at += su16;
+
+                    x = float(xi) * (1.f / 65535.f);
+                    x *= delta.x;
+                    x += minv.x;
+                    zeta.x = x;
+
+                    // y
+                    memcpy(&xi, at, su16); at += su16;
+
+                    x = float(xi) * (1.f / 65535.f);
+                    x *= delta.y;
+                    x += minv.y;
+                    zeta.y = x;
+
+                    // z
+                    memcpy(&xi, at, su16); at += su16;
+
+                    x = float(xi) * (1.f / 65535.f);
+                    x *= delta.z;
+                    x += minv.z;
+                    zeta.z = x;
+
+                    // w
+                    memcpy(&xi, at, su16); at += su16;
+
+                    x = float(xi) * (1.f / 65535.f);
+                    x *= delta.w;
+                    x += minv.w;
+                    zeta.w = x;
+
+                    out.emplace_back(zeta);
+                }
+            } else {
+                for (int i = 0; i < count; ++i)
+                    out.emplace_back(readFloat4(at));
+            }
+
+            return out;
+        }
+
+        tools::math::float3 readFloat3(const u8*& at) {
+            tools::math::float3 obj;
+
+            memcpy(&(obj.x[0]), at, su32); at += su32;
+            obj.x[0] = swap_endian<f32>(obj.x[0]);
+
+            memcpy(&(obj.x[1]), at, su32); at += su32;
+            obj.x[1] = swap_endian<f32>(obj.x[1]);
+
+            memcpy(&(obj.x[2]), at, su32); at += su32;
+            obj.x[2] = swap_endian<f32>(obj.x[2]);
+
+            return obj;
+        }
+
+        std::vector<tools::math::float4> 
+        read_Float3Array16(const u8*& at, s32 count) {
+
+            std::vector<tools::math::float4> out;
+            out.reserve(count);
+
+            if (count > 2)
+            {
+                tools::math::float3 minv = readFloat3(at);
+                tools::math::float3 maxv = readFloat3(at);
+
+                tools::math::float3 delta{};
+                for (int k = 0; k < 3; ++k)
+                    delta.x[k] = maxv.x[k] - minv.x[k];
+
+                tools::math::float4 gamma{};
+                tools::math::float3 zeta{};
+                for (int i = 0; i < count; ++i)
+                {
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        u16 xi;
+                        memcpy(&xi, at, su16); at += su16;
+                        float x = float(xi) * (1.f / 65535.f);
+                        x *= delta.x[k];
+                        x += minv.x[k];
+                        zeta.x[k] = x;
+                    }
+                    gamma = zeta;
+                    out.emplace_back(gamma);
+                }
+            }
+            else
+            {
+                tools::math::float4 gamma{};
+                for (int i = 0; i < count; ++i)
+                    gamma = readFloat3(at);
+                    out.emplace_back(gamma);
+            }
+
+            return out;
+        }
+
+        bool read_float3anim(const u8*& at, float3Animation& info) {
+            memcpy(&(info.keyCount), at, su32); at += su32; info.keyCount = swap_endian<s32>(info.keyCount);
+
+            info.keys = read_Float4Array16(at, info.keyCount);
+
             return true;
         }
 
@@ -578,36 +803,39 @@ namespace tools::hgr {
                 length /= size;
                 size *= info.keyCount;
 
-                info.keys = new f32[size];
+                f32* keys = new f32[size];
+                tools::math::float4 zeta{};
 
-                memcpy(info.keys, at, size * length); at += size * length;
-                for (u32 j{ 0 };j < size;++j) {
-                    info.keys[j] = swap_endian<f32>(info.keys[j]); // is it supposed to be little or big endian?
+                memcpy(keys, at, size * length); at += size * length;
+                for (u32 j{ 0 };j < size * length;++j) {
+                    zeta.x = swap_endian<f32>(keys[j++]);
+                    zeta.y = swap_endian<f32>(keys[j++]);
+                    if(length>2) zeta.z = swap_endian<f32>(keys[j++]);
+                    if(length>3) zeta.w = swap_endian<f32>(keys[j]);
+
+                    info.keys.emplace_back(zeta); // is it supposed to be little or big endian?
                 }
+                delete[] keys;
                 info.size = size;
-
-            } else { // Implement in v193
+            }
+            else { // Implement in v193
                 int dim;
-                memcpy(&dim, at, su32); at += su32; dim= swap_endian<u32>(dim);
+                memcpy(&dim, at, su32); at += su32; dim = swap_endian<u32>(dim);
                 assert((dim == 4 || dim == 3) && "Keyframe sequence in {0} dimension invalid ({1})");
 
                 if (dim == 4) { // VertexFormat::DF_V4_32
                     info.dataFormat = "DF_V4_32"; // float32[4]
                     //obj = new KeyframeSequence(keys, VertexFormat::DF_V4_32);
                     //readFloat4Array16((float4*)obj->data(), keys);
-                } else {
+                    info.keys = read_Float4Array16(at, info.keyCount); // Maybe Quaternion
+                }
+                else {
                     info.dataFormat = "DF_V3_32"; // float32[3]
                     //obj = new KeyframeSequence(keys, VertexFormat::DF_V3_32);
                     //readFloat3Array16((float3*)obj->data(), keys);
+                    info.keys = read_Float3Array16(at, info.keyCount);
                 }
             }
-
-            return true;
-        }
-
-        bool read_float3anim(const u8*& at, float3Animation& info) {
-            u16 s{ 0 };
-            memcpy(&(info.keyCount), at, su32); at += su32; info.keyCount = swap_endian<s32>(info.keyCount);
 
             return true;
         }
@@ -615,7 +843,7 @@ namespace tools::hgr {
         bool read_buffer(const u8*& at, transformAnimation*& info, u32& count) {
             u16 size{ 0 };
             for (u32 i{ 0 };i < count;++i) {
-                memcpy(&size, at, su16); at += su16; 
+                memcpy(&size, at, su16); at += su16;
                 SWAP(size, u16);
                 info[i].nodeName.assign(at, at + size); at += size; // name
 
@@ -623,31 +851,39 @@ namespace tools::hgr {
                 memcpy(&(info[i].rotKeyRate), at, 1); at += 1;
                 memcpy(&(info[i].sclKeyRate), at, 1); at += 1;
                 memcpy(&(info[i].endBehaviour), at, 1); at += 1;
-
+                
                 assert(info[i].endBehaviour < BehaviourType::BEHAVIOUR_COUNT);
 
                 // not listed in the hgr file format documentation
-                if (version >= 192) memcpy(&info->isOptimized, at, 1); at += 1;
+                if (version >= 192) memcpy(&info[i].isOptimized, at, 1); at += 1;
 
-                if (!info->isOptimized) {
+                if (!info[i].isOptimized) {
                     // not implementing rn
 
-                    //info[i].posKeyData = new keyframeSequence();
+                    info[i].posKeyData_uo = new keyframeSequence();
                     info[i].rotKeyData = new keyframeSequence();
-                    //info[i].sclKeyData = new keyframeSequence();
+                    info[i].sclKeyData_uo = new keyframeSequence();
 
-                    //read_buffer(at, *info[i].posKeyData);
+                    read_buffer(at, *info[i].posKeyData_uo);
                     read_buffer(at, *info[i].rotKeyData);
-                    //read_buffer(at, *info[i].sclKeyData);
-                } else { // New Implementation
-
+                    read_buffer(at, *info[i].sclKeyData_uo);
+                }
+                else { // New Implementation
+                    info[i].posKeyData = new float3Animation();
                     info[i].rotKeyData = new keyframeSequence(); // Only this remains same
+                    info[i].sclKeyData = new float3Animation();
 
+                    read_float3anim(at, *info[i].posKeyData);
+                    read_buffer(at, *info[i].rotKeyData);
+                    read_float3anim(at, *info[i].sclKeyData);
+
+                    info[i].endTime = 0.f;
                     if (version >= 193) {
                         memcpy(&(info[i].endTime), at, su32); at += su32;
                         info[i].endTime = swap_endian<f32>(info[i].endTime);
-                    } else {
-                        info[i].endTime = float(info[i].rotKeyData->keys[0]) * float(info[i].rotKeyRate);
+                    }
+                    else {
+                        info[i].endTime = float(info[i].rotKeyData->keyCount) * float(info[i].rotKeyRate);
                     }
                 }
             }
@@ -668,6 +904,16 @@ namespace tools::hgr {
             return true;
         }
 
+        void find_children(std::vector<node>& lNodes) {
+            int i{ 0 }; // if only i hadn't used an iterator
+            for (auto lNode : lNodes) {
+                ++i; if (lNode.parentIndex == 4294967295) continue;
+
+                lNodes[lNode.parentIndex].childIndex.push_back(i);
+            }
+            return;
+        }
+
         bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& size) {
             if (!std::filesystem::exists(path)) return false;
             assert(true);
@@ -684,15 +930,30 @@ namespace tools::hgr {
             file.close();
             return true;
         }
-	} // Anonymous Namespace
 
-    TOOL_INTERFACE bool StoreData(const char* path) {
+    } // Anonymous Namespace
 
+    TOOL_INTERFACE bool StoreData(const char* path, const char* texpath, const char* outpath) {
+
+        std::vector<node> hgrNodes;
         { // File Test
             std::string file = path;
             file = file.substr(file.find_last_of("\\") + 1, file.length() - file.find_last_of("\\") - 5);
+            if (file._Equal("hypno_level01")) corrupt = true;
+            if (file._Equal("hypno_level02")) corrupt = true;
+            if (file._Equal("hypno_level03")) corrupt = true;
+            if (file._Equal("hypno_level04")) corrupt = true;
             if (file._Equal("mushroom_level01")) corrupt = true;
+            if (file._Equal("mushroom_level02")) corrupt = true;
+            if (file._Equal("mushroom_level03")) corrupt = true;
+            if (file._Equal("mushroom_level04")) corrupt = true;
             if (file._Equal("score_level01")) corrupt = true;
+            if (file._Equal("score_level02")) corrupt = true;
+            if (file._Equal("score_level03")) corrupt = true;
+            if (file._Equal("skybean_level02")) corrupt = true;
+            if (file._Equal("skybean_level03")) corrupt = true;
+            if (file._Equal("skybean_level04")) corrupt = true;
+            if (file._Equal("worldmap")) corrupt = true;
         }
 
         std::unique_ptr<u8[]> buffer{};
@@ -715,101 +976,116 @@ namespace tools::hgr {
         memcpy(&(header->check_id), at, su32); at += su32;
         SWAP(header->check_id, u32);
 
-        entity_info entityInfo{};
+        // TODO: replace array pointers with vector
 
-        memcpy(&(entityInfo.Texture_Count), at, su32); at += su32; 
+        memcpy(&(entityInfo.Texture_Count), at, su32); at += su32;
         entityInfo.Texture_Count = swap_endian<u32>(entityInfo.Texture_Count);
-        texture_info* Textures = new texture_info[entityInfo.Texture_Count];
+        std::vector<texture_info> Textures;
         read_buffer(at, Textures, entityInfo.Texture_Count);
-        
+
         memcpy(&(entityInfo.Material_Count), at, su32); at += su32;
         entityInfo.Material_Count = swap_endian<u32>(entityInfo.Material_Count);
-        material_info* Materials = new material_info[entityInfo.Material_Count];
+        std::vector<material_info> Materials;
         read_buffer(at, Materials, entityInfo.Material_Count);
-        
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Primitive_Count), at, su32); at += su32;
         entityInfo.Primitive_Count = swap_endian<u32>(entityInfo.Primitive_Count);
-        primitive_info* Primitives = new primitive_info[entityInfo.Primitive_Count];
+        std::vector<primitive_info> Primitives;
         read_buffer(at, Primitives, entityInfo.Primitive_Count);
-        
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Mesh_Count), at, su32); at += su32;
         entityInfo.Mesh_Count = swap_endian<u32>(entityInfo.Mesh_Count);
         mesh* Meshes = new mesh[entityInfo.Mesh_Count];
-        read_buffer(at, Meshes, entityInfo.Mesh_Count);
-        
+        auto x = read_buffer(at, Meshes, entityInfo.Mesh_Count);
+
+        hgrNodes.insert(hgrNodes.end(),
+            std::make_move_iterator(x.begin()),
+            std::make_move_iterator(x.end()));
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Camera_Count), at, su32); at += su32;
         entityInfo.Camera_Count = swap_endian<u32>(entityInfo.Camera_Count);
         camera* Cameras = new camera[entityInfo.Camera_Count];
         if (entityInfo.Camera_Count > 0) {
-            read_buffer(at, Cameras, entityInfo.Camera_Count);
+            x = read_buffer(at, Cameras, entityInfo.Camera_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                std::make_move_iterator(x.begin()),
+                std::make_move_iterator(x.end()));
         }
-        
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Light_Count), at, su32); at += su32;
         entityInfo.Light_Count = swap_endian<u32>(entityInfo.Light_Count);
         light* Lights = new light[entityInfo.Light_Count];
         if (entityInfo.Light_Count > 0) {
-            read_buffer(at, Lights, entityInfo.Light_Count);
+            x = read_buffer(at, Lights, entityInfo.Light_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                std::make_move_iterator(x.begin()),
+                std::make_move_iterator(x.end()));
         }
-        
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Dummy_Count), at, su32); at += su32;
         entityInfo.Dummy_Count = swap_endian<u32>(entityInfo.Dummy_Count);
         dummy* Dummies = new dummy[entityInfo.Dummy_Count];
         if (entityInfo.Dummy_Count > 0) {
-            read_buffer(at, Dummies, entityInfo.Dummy_Count);
+            x = read_buffer(at, Dummies, entityInfo.Dummy_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                std::make_move_iterator(x.begin()),
+                std::make_move_iterator(x.end()));
         }
-        
+
         check_id(at, *header);
-        
+
         memcpy(&(entityInfo.Shape_Count), at, su32); at += su32;
         entityInfo.Shape_Count = swap_endian<u32>(entityInfo.Shape_Count);
         shape* Shapes = new shape[entityInfo.Shape_Count];
         if (entityInfo.Shape_Count > 0) {
-            read_buffer(at, Shapes, entityInfo.Shape_Count);
+            x = read_buffer(at, Shapes, entityInfo.Shape_Count);
+            hgrNodes.insert(hgrNodes.end(),
+                std::make_move_iterator(x.begin()),
+                std::make_move_iterator(x.end()));
         }
-        
-        check_id(at, *header);
-        
-        memcpy(&(entityInfo.OtherNodes_Count), at, su32); at += su32;
-        entityInfo.OtherNodes_Count = swap_endian<u32>(entityInfo.OtherNodes_Count);
-        node* Nodes = new node[entityInfo.OtherNodes_Count];
-        if (entityInfo.OtherNodes_Count > 0) {
-            for (u32 i{ 0 };i < entityInfo.OtherNodes_Count; ++i) {
-                read_buffer(at, Nodes[i]);
-            }
-        }
-        
+
         check_id(at, *header);
 
-        // NOTE: Implement Animations Later
-        /*
+        memcpy(&(entityInfo.OtherNodes_Count), at, su32); at += su32;
+        entityInfo.OtherNodes_Count = swap_endian<u32>(entityInfo.OtherNodes_Count);
+        node* otherNodes = new node[entityInfo.OtherNodes_Count];
+        if (entityInfo.OtherNodes_Count > 0) {
+            for (u32 i{ 0 };i < entityInfo.OtherNodes_Count; ++i) {
+                read_buffer(at, otherNodes[i]);
+                hgrNodes.push_back(otherNodes[i]);
+            }
+        }
+
+        check_id(at, *header);
+
         memcpy(&(entityInfo.TransformAnimation_Count), at, su32); at += su32;
         entityInfo.TransformAnimation_Count = swap_endian<u32>(entityInfo.TransformAnimation_Count);
         transformAnimation* TransformAnimations = new transformAnimation[entityInfo.TransformAnimation_Count];
         if (entityInfo.TransformAnimation_Count > 0) {
-            for (u32 i{ 0 };i < entityInfo.TransformAnimation_Count; ++i) {
-                read_buffer(at, TransformAnimations, entityInfo.TransformAnimation_Count);
-            }
+            read_buffer(at, TransformAnimations, entityInfo.TransformAnimation_Count);
         }
-
+        
         check_id(at, *header);
-
+        
         memcpy(&(entityInfo.UserProperties_Count), at, su32); at += su32;
         entityInfo.UserProperties_Count = swap_endian<u32>(entityInfo.UserProperties_Count);
         userProperty* UserProperties  = new userProperty[entityInfo.UserProperties_Count];
         if (entityInfo.UserProperties_Count > 0) {
             read_buffer(at, UserProperties, entityInfo.UserProperties_Count);
         }
-        */
+
+        // Check if all the data is read:
+        assert(at == (buffer.get() + size));
 
         assetData Asset{};
         // Fill Data
@@ -820,20 +1096,36 @@ namespace tools::hgr {
         Asset.matInfo = Materials;
         Asset.primInfo = Primitives;
 
-        CreateFBX(Asset, path); // FBX Exporter
+        find_children(hgrNodes); // Should I remove it? I'm not using it rn...
+        Asset.Nodes = hgrNodes;
+
+        Asset.meshInfo = Meshes;
+        Asset.cameraInfo = Cameras;
+        Asset.lightInfo = Lights;
+        Asset.dummyInfo = Dummies;
+        Asset.shapeinfo = Shapes;
+        Asset.otherNodeInfo = otherNodes;
+
+        Asset.transAnim = TransformAnimations;
+        Asset.userProp = UserProperties;
+
+        // TODO:
+        // connect bones
+        // connect lights to Meshes
+
+        CreateFBX(Asset, path, texpath, outpath); // FBX Exporter
 
         // to avoid memory leaks
         u32 i{ 0 };
         {
             delete header;
             delete sceneParams;
-            delete[] Textures;
+            Textures.clear();
             for (i = 0;i < entityInfo.Material_Count;++i) {
                 delete[] Materials[i].TexParams;
                 delete[] Materials[i].Vec4Params;
                 delete[] Materials[i].FloatParams;
             }
-            delete[] Materials;
             for (i = 0;i < entityInfo.Primitive_Count;++i) {
                 delete[] Primitives[i].formats;
                 for (u32 j{ 0 };j < Primitives[i].formatCount;++j) {
@@ -843,7 +1135,6 @@ namespace tools::hgr {
                 delete[] Primitives[i].indexData;
                 delete[] Primitives[i].usedBones;
             }
-            delete[] Primitives;
             for (i = 0;i < entityInfo.Mesh_Count;++i) {
                 delete[] Meshes[i].primIndex;
                 delete[] Meshes[i].meshbone;
@@ -857,11 +1148,139 @@ namespace tools::hgr {
                 delete[] Shapes[i].paths;
             }
             delete[] Shapes;
-            delete[] Nodes;
-            //delete[] TransformAnimations;
-            //delete[] UserProperties;
+            delete[] otherNodes;
+            for (i = 0;i < entityInfo.TransformAnimation_Count;++i) {
+                if (!(TransformAnimations[i].isOptimized)) {
+                    delete TransformAnimations[i].posKeyData_uo;
+                    delete TransformAnimations[i].rotKeyData;
+                    delete TransformAnimations[i].sclKeyData_uo;
+                }
+                else {
+                    delete TransformAnimations[i].posKeyData;
+                    delete TransformAnimations[i].rotKeyData;
+                    delete TransformAnimations[i].sclKeyData;
+                }
+            }
+            delete[] TransformAnimations;
+            delete[] UserProperties;
+        }
+
+        {
+            entityNodes.clear();
+            entityInfo.Texture_Count = 0;
+            entityInfo.Material_Count = 0;
+            entityInfo.Primitive_Count = 0;
+            entityInfo.Mesh_Count = 0;
+            entityInfo.Camera_Count = 0;
+            entityInfo.Light_Count = 0;
+            entityInfo.Dummy_Count = 0;
+            entityInfo.Shape_Count = 0;
+            entityInfo.OtherNodes_Count = 0;
+            entityInfo.TransformAnimation_Count = 0;
+            entityInfo.UserProperties_Count = 0;
         }
 
         return true;
     }
+
+    // Implement Later
+    /*
+    // connect bones
+	n = 0;
+	for ( int i = 0 ; i < meshbonecounts.size() ; ++i )
+	{
+		const MeshBoneCount& mbc = meshbonecounts[i];
+		int bonecount = mbc.bonecount;
+		for ( int k = 0 ; k < bonecount ; ++k )
+		{
+			const MeshBone& mb = meshbones[n++];
+			int ix = mb.boneindex;
+			if ( ix < 0 || ix >= nodes.size() )
+				throwError( IOException( Format("Failed to load scene \"{0}\". Invalid bone index ({1}) in \"{2}\".", filename, ix, mbc.mesh->name()) ) );
+
+			mbc.mesh->addBone( nodes[ix], mb.invresttm );
+		}
+	}
+	assert( meshbones.size() == n );
+
+	// connect lights to meshes
+	LightSorter lightsorter;
+	lightsorter.collectLights( this );
+	if ( lightsorter.lights() > 0 )
+	{
+		for ( int i = 0 ; i < meshbonecounts.size() ; ++i )
+		{
+			Mesh* mesh = meshbonecounts[i].mesh;
+
+			float3 meshpos = mesh->worldTransform().transform( (mesh->boundBoxMax()+mesh->boundBoxMin())*.5f );
+			Array<Light*>& lights = lightsorter.getLightsByDistance( meshpos );
+
+			if ( lights.size() > 0 )
+				mesh->addLight( lights[0] );
+		}
+	}
+
+	// create particle systems based on user properties Particle=<name>
+	if ( m_userProperties != 0 )
+	{
+		PropertyParser parser;
+		for ( HashtableIterator<String,String> it = m_userProperties->begin() ; it != m_userProperties->end() ; ++it )
+		{
+			parser.reset( it.value(), it.key() );
+
+			float time = 0.f;
+			for ( PropertyParser::ConstIterator i = parser.begin() ; i != parser.end() ; ++i )
+			{
+				if ( !strcmp(i.key(),"perspectivecorrection") )
+				{
+					float perspf = 5.f;
+					if ( sscanf(i.value(),"%g",&perspf) != 1 )
+						throwError( IOException( Format("Failed parse PerspectiveCorrection=<level 0-10> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+					int persp = (int)perspf;
+					if ( persp < 0 || persp > 10 )
+						throwError( IOException( Format("Failed parse PerspectiveCorrection=<level 0-10> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+					
+					Node* node = getNodeByName( it.key() );
+					if ( node->classId() == Node::NODE_MESH )
+					{
+						Mesh* mesh = static_cast<Mesh*>( node );
+						for ( int i = 0 ; i < mesh->primitives() ; ++i )
+							mesh->getPrimitive(i)->setPerspectiveCorrection( persp );
+					}
+				}
+				else if ( !strcmp(i.key(),"time") )
+				{
+					if ( sscanf(i.value(),"%g",&time) != 1 )
+						throwError( IOException( Format("Failed parse Time=<seconds> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+				}
+#ifndef HGR_NOPARTICLES
+				else if ( !strcmp(i.key(),"particle") )
+				{
+					PathName particlepathname( particlepathsz, i.value() );
+
+					// append .prs extension
+					buf.resize( strlen(particlepathname.toString()) + 1 );
+					strcpy( buf.begin(), particlepathname.toString() );
+					buf.resize( buf.size()-1 );
+					buf.add( '.' );
+					buf.add( 'p' );
+					buf.add( 'r' );
+					buf.add( 's' );
+					buf.add( 0 );
+
+					// create particle system from file <particlename>
+					P(ParticleSystem) particle = res->getParticleSystem( buf.begin(), texturepath, shaderpath );
+
+					// set particle instance specific properties
+					particle->setDelay( time );
+
+					// link particle to node
+					Node* node = getNodeByName( it.key() );
+					particle->linkTo( node );
+				}
+#endif // HGR_NOPARTICLES
+			}
+		}
+	}
+    */
 }

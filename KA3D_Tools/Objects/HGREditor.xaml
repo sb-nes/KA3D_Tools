@@ -9,14 +9,54 @@
     <UserControl.DataContext>
         <local:HGR/>
     </UserControl.DataContext>
-    <Border Margin="20"
-            Background="{StaticResource Tools.BackgroundBrush}"
+    <Border Margin="10"
+            Background="{StaticResource Tools.Pastel.RedBrush}"
             CornerRadius="4">
         <StackPanel Margin="10">
             <StackPanel>
-                <Button Content="Read File"
-                        Margin="5,0"
-                        Click="On_ReadFileButton_Clicked"/>
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <TextBlock Text="Path" VerticalAlignment="Center"
+                               Margin="5,0"/>
+                    <TextBox x:Name="FilePath" Text="{Binding InputPath}"
+                             Width="500" Margin="5,0"/>
+                    <Button Content=" Browse " 
+                            Click="On_SelectPathButton_Clicked"
+                            Margin="5,0"/>
+                </StackPanel>
+                
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <TextBlock Text="Texture Path" VerticalAlignment="Center"
+                               Margin="5,0"/>
+                    <TextBox x:Name="TexPath" Text="{Binding TexturePath}"
+                             Width="500" Margin="5,0"/>
+                    <Button Content=" Browse " 
+                            Click="On_SelectTexturePathButton_Clicked"
+                            Margin="5,0"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="5">
+                    <TextBlock Text="Output Path" VerticalAlignment="Center"
+                               Margin="5,0"/>
+                    <TextBox x:Name="OutPath" Text="{Binding OutputPath}"
+                             Width="500" Margin="5,0"/>
+                    <Button Content=" Browse " 
+                            Click="On_SelectOutputPathButton_Clicked"
+                            Margin="5,0"/>
+                </StackPanel>
+
+                <Separator/>
+
+                <StackPanel Orientation="Horizontal" Margin="5" 
+                            HorizontalAlignment="Right">
+                    <Button Content=" Read "
+                            Margin="5"
+                            Click="On_ReadFileButton_Clicked"
+                            IsEnabled="{Binding PathValid}"/>
+                    <Button Content=" Read Multiple Files "
+                            Margin="5"
+                            Click="On_ReadMultipleButton_Clicked"
+                            IsEnabled="{Binding PathValid}"/>
+                </StackPanel>
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="{Binding Data}"/>

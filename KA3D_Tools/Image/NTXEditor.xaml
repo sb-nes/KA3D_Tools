@@ -21,7 +21,7 @@
         <local:NTX/>
     </UserControl.DataContext>
     
-    <Border Margin="20"
+    <Border Margin="10"
             Background="{StaticResource Tools.BackgroundBrush}"
             CornerRadius="4">
         <StackPanel Margin="10">

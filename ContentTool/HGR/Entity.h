@@ -8,8 +8,13 @@ namespace tools::hgr {
 		std::string				name{};
 		math::float3x4			modeltm{}; // Transform
 		u32						nodeFlags{}; // Refer to Node::NodeFlags
-		u32						id{u32_invalid_id}; // Node ID
+		u32						id{u32_invalid_id}; // Node Class ID ?
 		u32						parentIndex{}; // -1 if no parent
+
+		std::vector<u32>		childIndex;
+		bool					isEnabled{ false };
+		u32						classID{};
+		u32						index{u32_invalid_id};
 	};
 
 	struct meshbone {
@@ -128,5 +133,19 @@ namespace tools::hgr {
 		BEHAVIOUR_STOP,
 		/** Number of supported behaviours. */
 		BEHAVIOUR_COUNT
+	};
+
+	enum LightType
+	{
+		/** Unknown light type. */
+		TYPE_UNKNOWN,
+		/** Distant light source (like sun). */
+		TYPE_DIRECTIONAL,
+		/** Omnidirectional point light source (like a candle). Default. */
+		TYPE_OMNI,
+		/** Spot light source (like a lamp). */
+		TYPE_SPOT,
+		/** Number of different types. */
+		TYPE_COUNT
 	};
 }

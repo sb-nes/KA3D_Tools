@@ -5,17 +5,41 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:KA3D_Tools"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="KA3D Tools" Height="450" Width="800">
     <Grid Background="{StaticResource Tools.Window.GrayBrush4}">
         <TabControl Margin="5"
                     BorderBrush="Transparent"
                     Background="{StaticResource Tools.Window.GrayBrush3}">
             <TabItem IsSelected="True"
-                     Header="NTX Editor">
+                     Header="NTX Editor"
+                     Background="{StaticResource Tools.BackgroundBrush}">
                 <local:NTXEditor/>
             </TabItem>
-            <TabItem Header="HGR Editor">
+            <TabItem Header="HGR Editor"
+                     Background="{StaticResource Tools.Pastel.RedBrush}">
                 <local:HGREditor/>
+            </TabItem>
+            <TabItem Header="About"
+                     Background="{StaticResource Tools.Pastel.GreenBrush}">
+                <Border CornerRadius="4" Margin="10" Background="{StaticResource Tools.Pastel.GreenBrush}">
+                    <StackPanel  Margin="10">
+                        <TextBlock>There is no purpose to this app for you. 
+                        It's a specialized tool, meaning it has no worldly or other 
+                        worldly application.</TextBlock>
+                        <TextBlock/>
+                        <TextBlock>
+                        KA3D 1.4 (Before it was renamed to Fusion Engine) is built by Kajala.
+                        </TextBlock>
+                        <TextBlock FontStyle="Italic" FontWeight="Bold">
+                            This might be the BOLDEST Claim ever.
+                        </TextBlock>
+                        <Border Margin="10" Background="Beige" CornerRadius="4" BorderBrush="Black" BorderThickness="2">
+                            <Button Content="Null" Margin="1" 
+                                    Background="Transparent" 
+                                    BorderBrush="Transparent"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
             </TabItem>
         </TabControl>
     </Grid>
