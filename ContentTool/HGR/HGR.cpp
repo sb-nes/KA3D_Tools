@@ -17,6 +17,7 @@ namespace tools::hgr {
         u16 version{ 0 };
         bool corrupt{ false };
         std::vector<node> entityNodes;
+        entity_info entityInfo{};
 
         constexpr bool is_big_endian = (std::endian::native == std::endian::big);
 
@@ -83,6 +84,10 @@ namespace tools::hgr {
 
                 memcpy(&(info[i].texIndex), at, su16); at += su16;
                 SWAP(info[i].texIndex, u16);
+                if (info[i].texIndex > entityInfo.Texture_Count) {
+                    assert(info[i].texIndex > entityInfo.Texture_Count);
+                    return false;
+                }
             }
             return true;
         }
@@ -154,7 +159,7 @@ namespace tools::hgr {
                 memcpy(&(m.texParamCount), at, 1); at += 1;
                 SWAP(m.texParamCount, u8);
                 m.TexParams = new texParam[m.texParamCount];
-                read_buffer(at, m.TexParams, m.texParamCount);
+                assert(read_buffer(at, m.TexParams, m.texParamCount));
 
                 memcpy(&(m.vec4ParamCount), at, 1); at += 1;
                 SWAP(m.vec4ParamCount, u8);
@@ -972,7 +977,6 @@ namespace tools::hgr {
         SWAP(header->check_id, u32);
 
         // TODO: replace array pointers with vector
-        entity_info entityInfo{};
 
         memcpy(&(entityInfo.Texture_Count), at, su32); at += su32;
         entityInfo.Texture_Count = swap_endian<u32>(entityInfo.Texture_Count);
@@ -1159,6 +1163,21 @@ namespace tools::hgr {
             }
             delete[] TransformAnimations;
             delete[] UserProperties;
+        }
+
+        {
+            entityNodes.clear();
+            entityInfo.Texture_Count = 0;
+            entityInfo.Material_Count = 0;
+            entityInfo.Primitive_Count = 0;
+            entityInfo.Mesh_Count = 0;
+            entityInfo.Camera_Count = 0;
+            entityInfo.Light_Count = 0;
+            entityInfo.Dummy_Count = 0;
+            entityInfo.Shape_Count = 0;
+            entityInfo.OtherNodes_Count = 0;
+            entityInfo.TransformAnimation_Count = 0;
+            entityInfo.UserProperties_Count = 0;
         }
 
         return true;
