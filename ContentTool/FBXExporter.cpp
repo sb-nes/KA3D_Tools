@@ -268,7 +268,6 @@ namespace tools {
 
             void SetTransform(FbxNode*& lNode, math::float3x4 modeltm)
             {
-                // TODO: Set Node Transform; Also fix it
                 FbxVector4 Position(modeltm.w[0], modeltm.w[1], modeltm.w[2]);
                 FbxVector4 Rotation = Rot3x3toDegrees(modeltm);
                 FbxVector4 Scale(1.0, 1.0, 1.0);

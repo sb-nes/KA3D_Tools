@@ -304,6 +304,7 @@ namespace tools::hgr {
             return true;
         }
 
+        // TODO : Fix UV Mapping
         bool read_buffer(const u8*& at, std::vector<primitive_info>& info, u32& count) {
             primitive_info p{};
             for (u32 i{ 0 };i < count;++i) {
