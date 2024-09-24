@@ -131,6 +131,10 @@ namespace tools {
                     CreateHGRNode(pScene, hgrNode);
                 }
 
+                for (u32 i = 0; i < (_assets.entityInfo->TransformAnimation_Count); ++i) {
+                    AnimateHGRNode(pScene, _assets.transAnim[i]);
+                }
+
                 return true;
             }
 
@@ -516,6 +520,58 @@ namespace tools {
                 lNode->SetNodeAttribute(lLight);
             }
 
+            void AnimateHGRNode(FbxScene*& pScene, tools::hgr::transformAnimation transAnim) {
+                FbxNode* root = pScene->GetRootNode();
+                FbxNode* animNode = root->FindChild(transAnim.nodeName.c_str());
+
+                // Create the Animation Stack
+                FbxAnimStack* lAnimStack = FbxAnimStack::Create(pScene, transAnim.nodeName.c_str());
+
+                // The animation nodes can only exist on AnimLayers therefore it is mandatory to
+                // add at least one AnimLayer to the AnimStack. And for the purpose of this example,
+                // one layer is all we need.
+                FbxAnimLayer* lAnimLayer = FbxAnimLayer::Create(pScene, "Base Layer");
+                lAnimStack->AddMember(lAnimLayer);
+
+                FbxAnimCurve* lCurve_X = NULL;
+                FbxAnimCurve* lCurve_Y = NULL;
+                FbxAnimCurve* lCurve_Z = NULL;
+                FbxTime lTime;
+                int i;
+                int lKeyIndex = 0;
+
+                {
+                    animNode->LclTranslation.GetCurveNode(lAnimLayer, true); // Creates the Curve Node when true
+
+                    lCurve_X = animNode->LclTranslation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+                    lCurve_Y = animNode->LclTranslation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+                    lCurve_Z = animNode->LclTranslation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+                    lCurve_X->KeyModifyBegin();
+                    lCurve_Y->KeyModifyBegin();
+                    lCurve_Z->KeyModifyBegin();
+                    double lValue;
+
+                    for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_X->KeyAdd(lTime);
+
+                        lCurve_X->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].x);
+                        lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+
+                        lCurve_Y->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].y);
+                        lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+
+                        lCurve_Z->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].z);
+                        lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+                    }
+
+                    lCurve_X->KeyModifyEnd();
+                    lCurve_Y->KeyModifyEnd();
+                    lCurve_Z->KeyModifyEnd();
+                }
+            }
+
             // _asset
             void SetAssets(hgr::assetData assets) { _assets = assets; }
 
@@ -550,7 +606,6 @@ namespace tools {
         FbxScene* gScene = FbxScene::Create(ex->GetFbxManager(), file.c_str());
 
         // Create and save fbx
-        //ex->_assets = asset;
         ex->SetAssets(asset);
         ex->SetTexPath(texpath);
         ex->SetOutPath(outpath);

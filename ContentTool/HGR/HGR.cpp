@@ -947,6 +947,7 @@ namespace tools::hgr {
             if (file._Equal("skybean_level02")) corrupt = true;
             if (file._Equal("skybean_level03")) corrupt = true;
             if (file._Equal("skybean_level04")) corrupt = true;
+            if (file._Equal("worldmap")) corrupt = true;
         }
 
         std::unique_ptr<u8[]> buffer{};
