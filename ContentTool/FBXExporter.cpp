@@ -199,11 +199,74 @@ namespace tools {
                 return lNode;
             }
 
+            // Gimbal lock is a mathematical problem that arises only when Euler angles (Roll/Pitch/Yaw) are used to represent 3D orientation. 
+            // More specifically it occurs when the X-axis of an MTi points straight up or straight down, i.e. Pitch = +-90 deg.
+
+            [[nodiscard]]
+            FbxVector4 Rot3x3toQuaternion(math::float3x4 modeltm) {
+                FbxVector4 q(0, 0, 0, 0);
+                double t = 0;
+
+                if (modeltm.z[2] < 0) {
+                    if (modeltm.x[0] > modeltm.y[1]) {
+                        t = 1 + modeltm.x[0] - modeltm.y[1] - modeltm.z[2];
+                        q = FbxVector4(t, modeltm.y[0] + modeltm.x[1], modeltm.x[2] + modeltm.z[0], modeltm.z[1] - modeltm.y[2]);
+                    }
+                    else {
+                        t = 1 - modeltm.x[0] + modeltm.y[1] - modeltm.z[2];
+                        q = FbxVector4(modeltm.y[0] + modeltm.x[1], t, modeltm.z[1] + modeltm.y[2], modeltm.x[2] - modeltm.z[0]);
+                    }
+                }
+                else {
+                    if (modeltm.x[0] < -modeltm.y[1]) {
+                        t = 1 - modeltm.x[0] - modeltm.y[1] + modeltm.z[2];
+                        q = FbxVector4(modeltm.x[2] + modeltm.z[0], modeltm.z[1] + modeltm.y[2], t, modeltm.y[0] - modeltm.x[1]);
+                    }
+                    else {
+                        t = 1 + modeltm.x[0] + modeltm.y[1] + modeltm.z[2];
+                        q = FbxVector4(modeltm.z[1] - modeltm.y[2], modeltm.x[2] - modeltm.z[0], modeltm.y[0] - modeltm.x[1], t);
+                    }
+                }
+                q *= 0.5 / std::sqrt(t);
+
+
+                return q;
+            }
+
+            [[nodiscard]]
+            FbxVector4 QuaterniontoEuler(FbxVector4 quat) {
+                FbxVector4 e(0, 0, 0, 0);
+                double t0, t1, t2, t3, t4;
+                double X, Y, Z;
+
+                t0 = +2.0 * (quat[0] * quat[1] + quat[2] * quat[3]);
+                t1 = +1.0 - 2.0 * (quat[1] * quat[1] + quat[2] * quat[2]);
+                X = (std::atan2(t0, t1) * (180.0 / 3.141592653589793238463));
+
+                t2 = +2.0 * (quat[0] * quat[2] - quat[3] * quat[1]);
+                t2 = t2 > 1.0 ? +1.0 : t2;
+                t2 = t2 < -1.0 ? -1.0 : t2;
+                Y = (std::asin(t2) * (180.0 / 3.141592653589793238463));
+
+                t3 = +2.0 * (quat[0] * quat[3] + quat[1] * quat[2]);
+                t4 = +1.0 - 2.0 * (quat[2] * quat[2] + quat[3] * quat[3]);
+                Z = (std::atan2(t3, t4) * (180.0 / 3.141592653589793238463));
+
+                e = FbxVector4(X, Y, Z);
+
+                return e;
+            }
+
+            [[nodiscard]]
+            FbxVector4 Rot3x3toDegrees(math::float3x4 modeltm) {
+                return QuaterniontoEuler(Rot3x3toQuaternion(modeltm));
+            }
+
             void SetTransform(FbxNode*& lNode, math::float3x4 modeltm)
             {
                 // TODO: Set Node Transform; Also fix it
-                FbxVector4 Position(modeltm.x[0], modeltm.x[1], modeltm.x[2]);
-                FbxVector4 Rotation(0, 0, 0);
+                FbxVector4 Position(modeltm.w[0], modeltm.w[1], modeltm.w[2]);
+                FbxVector4 Rotation = Rot3x3toDegrees(modeltm);
                 FbxVector4 Scale(1.0, 1.0, 1.0);
 
                 lNode->LclTranslation.Set(Position);

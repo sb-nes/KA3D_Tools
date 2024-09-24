@@ -142,6 +142,9 @@ namespace tools::hgr {
 		shape* shapeinfo;
 		node* otherNodeInfo;
 
+		transformAnimation* transAnim;
+		userProperty* userProp;
+
 		std::vector<node> Nodes; // This holds the necessary data to refer to stuff
 	};
 }

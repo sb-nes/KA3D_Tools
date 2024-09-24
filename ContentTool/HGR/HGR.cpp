@@ -363,20 +363,13 @@ namespace tools::hgr {
         }
 
         bool read_buffer(const u8*& at, node& info) {
-            u16 size{ 0 }; // u32 i{ 0 };
+            u16 size{ 0 }; u32 i{ 0 };
             memcpy(&size, at, su16); at += su16;
             SWAP(size, u16);
             info.name.assign(at, at + size); at += size; // name
 
-            // model tm
-            memcpy(&info.modeltm.x, at, su32*3); at += su32*3;
-            memcpy(&info.modeltm.y, at, su32*3); at += su32*3;
-            memcpy(&info.modeltm.z, at, su32*3); at += su32*3;
-            memcpy(&info.modeltm.w, at, su32*3); at += su32*3;
-
-            /*
-            for (i = 0;i < 3;++i) {
-                memcpy(&info.modeltm.x[i], at, su32); at += su32;
+            for (i = 0;i < 3;++i) { // 3 rows 4 columns
+                memcpy(&info.modeltm.x[i], at, su32); at += su32; // Pos
                 memcpy(&info.modeltm.y[i], at, su32); at += su32;
                 memcpy(&info.modeltm.z[i], at, su32); at += su32;
                 memcpy(&info.modeltm.w[i], at, su32); at += su32;
@@ -385,7 +378,6 @@ namespace tools::hgr {
                 SWAP(info.modeltm.z[i], f32);
                 SWAP(info.modeltm.w[i], f32);
             }
-            */
 
             memcpy(&(info.nodeFlags), at, su32); at += su32;
             SWAP(info.nodeFlags, u32);
@@ -634,7 +626,6 @@ namespace tools::hgr {
             return entityNodes;
         }
 
-        // TODO: Fix reading transform animations
         tools::math::float4 readFloat4(const u8*& at) {
             tools::math::float4 obj;
 
@@ -818,7 +809,7 @@ namespace tools::hgr {
 
                     info.keys.emplace_back(zeta); // is it supposed to be little or big endian?
                 }
-
+                delete[] keys;
                 info.size = size;
             }
             else { // Implement in v193
@@ -858,9 +849,9 @@ namespace tools::hgr {
                 assert(info[i].endBehaviour < BehaviourType::BEHAVIOUR_COUNT);
 
                 // not listed in the hgr file format documentation
-                if (version >= 192) memcpy(&info->isOptimized, at, 1); at += 1;
+                if (version >= 192) memcpy(&info[i].isOptimized, at, 1); at += 1;
 
-                if (!info->isOptimized) {
+                if (!info[i].isOptimized) {
                     // not implementing rn
 
                     info[i].posKeyData_uo = new keyframeSequence();
@@ -933,6 +924,7 @@ namespace tools::hgr {
             file.close();
             return true;
         }
+
     } // Anonymous Namespace
 
     TOOL_INTERFACE bool StoreData(const char* path, const char* texpath, const char* outpath) {
@@ -1086,6 +1078,9 @@ namespace tools::hgr {
             read_buffer(at, UserProperties, entityInfo.UserProperties_Count);
         }
 
+        // Check if all the data is read:
+        assert(at == (buffer.get() + size));
+
         assetData Asset{};
         // Fill Data
         Asset.info = header;
@@ -1104,6 +1099,13 @@ namespace tools::hgr {
         Asset.dummyInfo = Dummies;
         Asset.shapeinfo = Shapes;
         Asset.otherNodeInfo = otherNodes;
+
+        Asset.transAnim = TransformAnimations;
+        Asset.userProp = UserProperties;
+
+        // TODO:
+        // connect bones
+        // connect lights to Meshes
 
         CreateFBX(Asset, path, texpath, outpath); // FBX Exporter
 
@@ -1141,10 +1143,123 @@ namespace tools::hgr {
             }
             delete[] Shapes;
             delete[] otherNodes;
-            //delete[] TransformAnimations;
-            //delete[] UserProperties;
+            for (i = 0;i < entityInfo.TransformAnimation_Count;++i) {
+                if (!(TransformAnimations[i].isOptimized)) {
+                    delete TransformAnimations[i].posKeyData_uo;
+                    delete TransformAnimations[i].rotKeyData;
+                    delete TransformAnimations[i].sclKeyData_uo;
+                }
+                else {
+                    delete TransformAnimations[i].posKeyData;
+                    delete TransformAnimations[i].rotKeyData;
+                    delete TransformAnimations[i].sclKeyData;
+                }
+            }
+            delete[] TransformAnimations;
+            delete[] UserProperties;
         }
 
         return true;
     }
+
+    // Implement Later
+    /*
+    // connect bones
+	n = 0;
+	for ( int i = 0 ; i < meshbonecounts.size() ; ++i )
+	{
+		const MeshBoneCount& mbc = meshbonecounts[i];
+		int bonecount = mbc.bonecount;
+		for ( int k = 0 ; k < bonecount ; ++k )
+		{
+			const MeshBone& mb = meshbones[n++];
+			int ix = mb.boneindex;
+			if ( ix < 0 || ix >= nodes.size() )
+				throwError( IOException( Format("Failed to load scene \"{0}\". Invalid bone index ({1}) in \"{2}\".", filename, ix, mbc.mesh->name()) ) );
+
+			mbc.mesh->addBone( nodes[ix], mb.invresttm );
+		}
+	}
+	assert( meshbones.size() == n );
+
+	// connect lights to meshes
+	LightSorter lightsorter;
+	lightsorter.collectLights( this );
+	if ( lightsorter.lights() > 0 )
+	{
+		for ( int i = 0 ; i < meshbonecounts.size() ; ++i )
+		{
+			Mesh* mesh = meshbonecounts[i].mesh;
+
+			float3 meshpos = mesh->worldTransform().transform( (mesh->boundBoxMax()+mesh->boundBoxMin())*.5f );
+			Array<Light*>& lights = lightsorter.getLightsByDistance( meshpos );
+
+			if ( lights.size() > 0 )
+				mesh->addLight( lights[0] );
+		}
+	}
+
+	// create particle systems based on user properties Particle=<name>
+	if ( m_userProperties != 0 )
+	{
+		PropertyParser parser;
+		for ( HashtableIterator<String,String> it = m_userProperties->begin() ; it != m_userProperties->end() ; ++it )
+		{
+			parser.reset( it.value(), it.key() );
+
+			float time = 0.f;
+			for ( PropertyParser::ConstIterator i = parser.begin() ; i != parser.end() ; ++i )
+			{
+				if ( !strcmp(i.key(),"perspectivecorrection") )
+				{
+					float perspf = 5.f;
+					if ( sscanf(i.value(),"%g",&perspf) != 1 )
+						throwError( IOException( Format("Failed parse PerspectiveCorrection=<level 0-10> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+					int persp = (int)perspf;
+					if ( persp < 0 || persp > 10 )
+						throwError( IOException( Format("Failed parse PerspectiveCorrection=<level 0-10> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+					
+					Node* node = getNodeByName( it.key() );
+					if ( node->classId() == Node::NODE_MESH )
+					{
+						Mesh* mesh = static_cast<Mesh*>( node );
+						for ( int i = 0 ; i < mesh->primitives() ; ++i )
+							mesh->getPrimitive(i)->setPerspectiveCorrection( persp );
+					}
+				}
+				else if ( !strcmp(i.key(),"time") )
+				{
+					if ( sscanf(i.value(),"%g",&time) != 1 )
+						throwError( IOException( Format("Failed parse Time=<seconds> User Property field from object \"{0}\" in scene \"{1}\"", it.key(), name()) ) );
+				}
+#ifndef HGR_NOPARTICLES
+				else if ( !strcmp(i.key(),"particle") )
+				{
+					PathName particlepathname( particlepathsz, i.value() );
+
+					// append .prs extension
+					buf.resize( strlen(particlepathname.toString()) + 1 );
+					strcpy( buf.begin(), particlepathname.toString() );
+					buf.resize( buf.size()-1 );
+					buf.add( '.' );
+					buf.add( 'p' );
+					buf.add( 'r' );
+					buf.add( 's' );
+					buf.add( 0 );
+
+					// create particle system from file <particlename>
+					P(ParticleSystem) particle = res->getParticleSystem( buf.begin(), texturepath, shaderpath );
+
+					// set particle instance specific properties
+					particle->setDelay( time );
+
+					// link particle to node
+					Node* node = getNodeByName( it.key() );
+					particle->linkTo( node );
+				}
+#endif // HGR_NOPARTICLES
+			}
+		}
+	}
+    */
 }
