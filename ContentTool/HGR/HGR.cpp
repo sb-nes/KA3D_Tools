@@ -821,7 +821,7 @@ namespace tools::hgr {
                     info.dataFormat = "DF_V4_32"; // float32[4]
                     //obj = new KeyframeSequence(keys, VertexFormat::DF_V4_32);
                     //readFloat4Array16((float4*)obj->data(), keys);
-                    info.keys = read_Float4Array16(at, info.keyCount);
+                    info.keys = read_Float4Array16(at, info.keyCount); // Maybe Quaternion
                 }
                 else {
                     info.dataFormat = "DF_V3_32"; // float32[3]

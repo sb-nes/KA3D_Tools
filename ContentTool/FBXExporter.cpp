@@ -540,6 +540,7 @@ namespace tools {
                 int i;
                 int lKeyIndex = 0;
 
+                // Animate Position
                 {
                     animNode->LclTranslation.GetCurveNode(lAnimLayer, true); // Creates the Curve Node when true
 
@@ -550,26 +551,135 @@ namespace tools {
                     lCurve_X->KeyModifyBegin();
                     lCurve_Y->KeyModifyBegin();
                     lCurve_Z->KeyModifyBegin();
-                    double lValue;
 
                     for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
                         lTime.SetFrame(i);
                         lKeyIndex = lCurve_X->KeyAdd(lTime);
 
                         lCurve_X->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].x);
-                        lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+                        lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+
+                    for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Y->KeyAdd(lTime);
 
                         lCurve_Y->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].y);
-                        lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+                        lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+                    for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Z->KeyAdd(lTime);
 
                         lCurve_Z->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].z);
-                        lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+                        lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
                     }
 
                     lCurve_X->KeyModifyEnd();
                     lCurve_Y->KeyModifyEnd();
                     lCurve_Z->KeyModifyEnd();
                 }
+
+                // Animate Rotation
+                {
+                    // Quaternion to Degrees
+                    //
+                    std::vector<FbxVector4> rotKeyData;
+                    rotKeyData.reserve(transAnim.rotKeyData->keyCount);
+                    if (transAnim.rotKeyData->dataFormat == "DF_V4_32") {
+                        for (auto key : transAnim.rotKeyData->keys) {
+                            FbxVector4 rotKey(key.x, key.y, key.z, key.w);
+                            rotKey = QuaterniontoEuler(rotKey);
+                            rotKeyData.emplace_back(rotKey);
+                        }
+                    }
+                    //
+                    //
+
+                    animNode->LclRotation.GetCurveNode(lAnimLayer, true); // Creates the Curve Node when true
+
+                    lCurve_X = animNode->LclRotation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+                    lCurve_Y = animNode->LclRotation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+                    lCurve_Z = animNode->LclRotation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+                    lCurve_X->KeyModifyBegin();
+                    lCurve_Y->KeyModifyBegin();
+                    lCurve_Z->KeyModifyBegin();
+
+                    for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_X->KeyAdd(lTime);
+
+                        lCurve_X->KeySetValue(lKeyIndex, -(float)rotKeyData[i][0]);
+                        lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+
+                    for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Y->KeyAdd(lTime);
+
+                        lCurve_Y->KeySetValue(lKeyIndex, -(float)rotKeyData[i][1]);
+                        lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+                    for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Z->KeyAdd(lTime);
+
+                        lCurve_Z->KeySetValue(lKeyIndex, -(float)rotKeyData[i][2]);
+                        lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+                    lCurve_X->KeyModifyEnd();
+                    lCurve_Y->KeyModifyEnd();
+                    lCurve_Z->KeyModifyEnd();
+                }
+                
+                // Animate Scale
+                {
+                    animNode->LclScaling.GetCurveNode(lAnimLayer, true); // Creates the Curve Node when true
+
+                    lCurve_X = animNode->LclScaling.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+                    lCurve_Y = animNode->LclScaling.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+                    lCurve_Z = animNode->LclScaling.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+                    lCurve_X->KeyModifyBegin();
+                    lCurve_Y->KeyModifyBegin();
+                    lCurve_Z->KeyModifyBegin();
+
+                    for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_X->KeyAdd(lTime);
+
+                        lCurve_X->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].x);
+                        lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+
+                    for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Y->KeyAdd(lTime);
+
+                        lCurve_Y->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].y);
+                        lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+                    for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
+                        lTime.SetFrame(i);
+                        lKeyIndex = lCurve_Z->KeyAdd(lTime);
+
+                        lCurve_Z->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].z);
+                        lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
+                    }
+
+                    lCurve_X->KeyModifyEnd();
+                    lCurve_Y->KeyModifyEnd();
+                    lCurve_Z->KeyModifyEnd();
+                }
+                
             }
 
             // _asset
