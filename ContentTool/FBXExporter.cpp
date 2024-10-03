@@ -349,7 +349,7 @@ namespace tools {
 
                 // Create UV for Diffuse Channel, Ambient Channel and Emissive Channel [idk if there are any more]
 
-                // Diffuse channel - automatically calculate UV co-ords
+                // Diffuse channel - manually assign UV co-ords
                 FbxGeometryElementUV* lUVDiffuseElement = lMesh->CreateElementUV(gDiffuseElementName);
                 FBX_ASSERT(lUVDiffuseElement != NULL);
                 lUVDiffuseElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
@@ -359,18 +359,20 @@ namespace tools {
                 double x, y;
 
                 for (i = 0; i < prim_info.verts; ++i) {
-                    x = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[0];
-                    y = (*buf++) * prim_info.vArray[tex0].scale + prim_info.vArray[tex0].bias[1];
+                    x = ((*buf++) * prim_info.vArray[tex0].scale) + prim_info.vArray[tex0].bias[0];
+                    y = ((*buf++) * prim_info.vArray[tex0].scale) + prim_info.vArray[tex0].bias[1];
 
-                    lVectors.push_back({ -y + 1.0, x });
-                    //lVectors.push_back({ x, y });
+                    //lVectors.push_back({ -y + 1.0, x });
+                    lVectors.push_back({ x, 1.0 - y });
                 }
 
-                for (i = 0; i < prim_info.indices; ++i) {
-                    lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i]]);
+                for (i = 0; i < (prim_info.indices / 3); ++i) {
+                    lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i * 3 + 2]]);
+                    lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i * 3 + 1]]);
+                    lUVDiffuseElement->GetDirectArray().Add(lVectors[prim_info.indexData[i * 3 + 0]]);
                 }
 
-                //lUVDiffuseElement->GetIndexArray().SetCount(prim_info.indices); // Resize
+                lUVDiffuseElement->GetIndexArray().SetCount(prim_info.indices); // Resize
 
                 // Create Polygon and Map UVs
                 assert(prim_info.primitiveType == tools::hgr::Mesh::PRIM_TRI);
@@ -387,11 +389,17 @@ namespace tools {
                         lMesh->AddPolygon(lPolygonVertices[i * 3 + j]); // For each index
 
                         // Update the index array of the UVs for diffuse, ambient and emissive
-                        lUVDiffuseElement->GetIndexArray().SetAt(i * 3 + j, j);
+                        lUVDiffuseElement->GetIndexArray().SetAt(i * 3 + j, i * 3 + j);
                     }
+
+                    //for (j = 0; j < 3; ++j) {
+                    //    // Update the index array of the UVs for diffuse, ambient and emissive
+                    //    lUVDiffuseElement->GetIndexArray().SetAt(i * 3 + j, j);
+                    //}
 
                     lMesh->EndPolygon();
                 }
+                assert(i == (prim_info.indices / 3));
 
                 delete[] lPolygonVertices;
                 lVectors.clear();

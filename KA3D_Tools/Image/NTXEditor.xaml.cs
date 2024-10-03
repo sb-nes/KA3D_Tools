@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Win32;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace KA3D_Tools
 {
@@ -37,15 +38,16 @@ namespace KA3D_Tools
 
         private void OnConvertBulkButton_Clicked(object sender, RoutedEventArgs e)
         {
-            using (var fbd = new System.Windows.Forms.FolderBrowserDialog())
+            var vm = DataContext as NTX;
+            var dlg = new CommonOpenFileDialog()
             {
-                System.Windows.Forms.DialogResult result = fbd.ShowDialog();
-
-                if(result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                {
-                    string[] files = Directory.GetFiles(fbd.SelectedPath, "*.ntx", SearchOption.TopDirectoryOnly);
-                    var vm = DataContext as NTX;
-                    vm.OutPath = $@"{fbd.SelectedPath}/NTX Output";
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                IsFolderPicker = true
+            };
+            if (dlg.ShowDialog() == CommonFileDialogResult.Ok)
+            {
+                string[] files = Directory.GetFiles(dlg.FileName, "*.ntx", SearchOption.TopDirectoryOnly);
+                    vm.OutPath = $@"{dlg.FileName}/NTX Output";
                     Directory.CreateDirectory(vm.OutPath);
 
                     foreach (var ntx in files)
@@ -54,7 +56,6 @@ namespace KA3D_Tools
                         vm.outType = outputType;
                         vm.readNTX();
                     }
-                }
             }
         }
 

@@ -1,19 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace KA3D_Tools
 {
     [StructLayout(LayoutKind.Sequential)]
-    class NTX_Header
-    {
+    class NTX_Header {
         /*
         UInt16 
         flags
@@ -27,11 +22,7 @@ namespace KA3D_Tools
     }
 
 
-    public class NTX : ViewModelBase
-    {
-        [DllImport("gdi32.dll")]
-        public static extern bool DeleteObject(IntPtr hObject);
-
+    public class NTX : ViewModelBase {
 
         private string _ntxPath;
         public string NTXPath
@@ -249,15 +240,13 @@ namespace KA3D_Tools
                 }
                 readPalette(bw, header);
                 readPixelData(bw, header);
-                Debug.WriteLine(file.Length - file.Position <= 0);
+                Debug.Assert(file.Length - file.Position <= 0);
 
                 // var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
                 createBMP(header);
             }
             
         }
-        public NTX()
-        {
-        }
+        public NTX() {}
     }
 }
