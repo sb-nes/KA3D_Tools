@@ -23,9 +23,10 @@ namespace KA3D_Tools
         {
             Loaded -= OnHGREditor_Loaded;
             var vm = DataContext as HGR;
-            vm.InputPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            vm.TexturePath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            vm.OutputPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            //vm.InputPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            vm.InputPath = "G:/Projects/Bounce Boing Voyage Port/original";
+            vm.TexturePath = "G:/Projects/Bounce Boing Voyage Port/textures/Bounce Boing Voyage/JPG";
+            vm.OutputPath = "G:/Projects/Bounce Boing Voyage Port/original";
             vm.PathValid = true;
         }
 

@@ -57,6 +57,12 @@
                             Click="On_ReadMultipleButton_Clicked"
                             IsEnabled="{Binding PathValid}"/>
                 </StackPanel>
+
+                <Separator/>
+
+                <StackPanel>
+                    
+                </StackPanel>
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="{Binding Data}"/>

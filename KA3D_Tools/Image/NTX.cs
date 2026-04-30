@@ -154,11 +154,27 @@ namespace KA3D_Tools
                             color = Color.FromArgb(a, r, g, b);
                             bmp.SetPixel(x, y, color);
                             break;
+                        case (int)SurfaceFormat.SURFACE_A4B4G4R4:
+                            a = ((pixelData & 0xF000) >> 8) + ((pixelData & 0xF000) >> 12);
+                            r = ((pixelData & 0x0F00) >> 4) + ((pixelData & 0x0F00) >> 8);
+                            g = (pixelData & 0x00F0) + ((pixelData & 0x00F0) >> 4);
+                            b = ((pixelData & 0x000F) << 4) + (pixelData & 0x000F);
+                            color = Color.FromArgb(a, r, g, b);
+                            bmp.SetPixel(x, y, color);
+                            break;
+                        case (int)SurfaceFormat.SURFACE_X4R4G4B4:
+                            a = ((pixelData & 0xF000) >> 8) + ((pixelData & 0xF000) >> 12);
+                            r = ((pixelData & 0x0F00) >> 4) + ((pixelData & 0x0F00) >> 8);
+                            g = (pixelData & 0x00F0) + ((pixelData & 0x00F0) >> 4);
+                            b = ((pixelData & 0x000F) << 4) + (pixelData & 0x000F);
+                            color = Color.FromArgb(255, r, g, b);
+                            bmp.SetPixel(x, y, color);
+                            break;
                         case (int)SurfaceFormat.SURFACE_R5G6B5:
-                            a = 255;
                             r = ((pixelData & 0xF800) >> 8) + 0b111;
                             g = ((pixelData & 0x07E0) >> 3) + 0b11;
                             b = ((pixelData & 0x001F) << 3) + 0b111;
+                            a = (r+g+b)>0?255:0;
                             color = Color.FromArgb(a, r, g, b);
                             bmp.SetPixel(x, y, color);
                             break;
@@ -240,7 +256,7 @@ namespace KA3D_Tools
                 }
                 readPalette(bw, header);
                 readPixelData(bw, header);
-                Debug.Assert(file.Length - file.Position <= 0);
+                Debug.Assert(file.Length - file.Position - 1 <= 0);
 
                 // var data = bw.ReadBytes((int)(file.Length - file.Position)); // Byte Array -> uint8_t
                 createBMP(header);

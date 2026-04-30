@@ -130,7 +130,7 @@ namespace tools {
                 for (auto hgrNode : _assets.Nodes) {
                     CreateHGRNode(pScene, hgrNode);
                 }
-
+                
                 for (u32 i = 0; i < (_assets.entityInfo->TransformAnimation_Count); ++i) {
                     AnimateHGRNode(pScene, _assets.transAnim[i]);
                 }
@@ -207,58 +207,44 @@ namespace tools {
             // More specifically it occurs when the X-axis of an MTi points straight up or straight down, i.e. Pitch = +-90 deg.
 
             [[nodiscard]]
-            FbxVector4 Rot3x3toQuaternion(math::float3x4 modeltm) {
-                FbxVector4 q(0, 0, 0, 0);
-                double t = 0;
+            FbxQuaternion Rot3x3toQuaternion(math::float3x4 modeltm) {
+                math::float4 quat(0,0,0,0);
+                math::float3x3 m(modeltm);
+                
+                const float trace = m.get(0, 0) + m.get(1, 1) + m.get(2, 2);
 
-                if (modeltm.z[2] < 0) {
-                    if (modeltm.x[0] > modeltm.y[1]) {
-                        t = 1 + modeltm.x[0] - modeltm.y[1] - modeltm.z[2];
-                        q = FbxVector4(t, modeltm.y[0] + modeltm.x[1], modeltm.x[2] + modeltm.z[0], modeltm.z[1] - modeltm.y[2]);
-                    }
-                    else {
-                        t = 1 - modeltm.x[0] + modeltm.y[1] - modeltm.z[2];
-                        q = FbxVector4(modeltm.y[0] + modeltm.x[1], t, modeltm.z[1] + modeltm.y[2], modeltm.x[2] - modeltm.z[0]);
-                    }
+                if (trace > 0.f) {
+                    float root = sqrtf(trace + 1.f);
+                    quat.w = root * .5f;
+                    assert(fabsf(root) >= FLT_MIN);
+                    root = .5f / root;
+                    quat.x = root * (m.get(2, 1) - m.get(1, 2));
+                    quat.y = root * (m.get(0, 2) - m.get(2, 0));
+                    quat.z = root * (m.get(1, 0) - m.get(0, 1));
+                } else {
+                    unsigned i = 0;
+                    if (m.get(1, 1) > m.get(0, 0))
+                        i = 1;
+                    if (m.get(2, 2) > m.get(i, i))
+                        i = 2;
+                    const unsigned j = (i == 2 ? 0 : i + 1);
+                    const unsigned k = (j == 2 ? 0 : j + 1);
+
+                    float root = sqrtf(m.get(i, i) - m.get(j, j) - m.get(k, k) + 1.f);
+                    float* v = &quat.x;
+                    v[i] = root * .5f;
+                    assert(fabsf(root) >= FLT_MIN);
+                    root = .5f / root;
+                    v[j] = root * (m.get(j, i) + m.get(i, j));
+                    v[k] = root * (m.get(k, i) + m.get(i, k));
+                    quat.w = root * (m.get(k, j) - m.get(j, k));
                 }
-                else {
-                    if (modeltm.x[0] < -modeltm.y[1]) {
-                        t = 1 - modeltm.x[0] - modeltm.y[1] + modeltm.z[2];
-                        q = FbxVector4(modeltm.x[2] + modeltm.z[0], modeltm.z[1] + modeltm.y[2], t, modeltm.y[0] - modeltm.x[1]);
-                    }
-                    else {
-                        t = 1 + modeltm.x[0] + modeltm.y[1] + modeltm.z[2];
-                        q = FbxVector4(modeltm.z[1] - modeltm.y[2], modeltm.x[2] - modeltm.z[0], modeltm.y[0] - modeltm.x[1], t);
-                    }
-                }
-                q *= 0.5 / std::sqrt(t);
-
-
-                return q;
+                return FbxQuaternion(quat.x, quat.y, quat.z, quat.w);
             }
 
             [[nodiscard]]
-            FbxVector4 QuaterniontoEuler(FbxVector4 quat) {
-                FbxVector4 e(0, 0, 0, 0);
-                double t0, t1, t2, t3, t4;
-                double X, Y, Z;
-
-                t0 = +2.0 * (quat[0] * quat[1] + quat[2] * quat[3]);
-                t1 = +1.0 - 2.0 * (quat[1] * quat[1] + quat[2] * quat[2]);
-                X = (std::atan2(t0, t1) * (180.0 / 3.141592653589793238463));
-
-                t2 = +2.0 * (quat[0] * quat[2] - quat[3] * quat[1]);
-                t2 = t2 > 1.0 ? +1.0 : t2;
-                t2 = t2 < -1.0 ? -1.0 : t2;
-                Y = (std::asin(t2) * (180.0 / 3.141592653589793238463));
-
-                t3 = +2.0 * (quat[0] * quat[3] + quat[1] * quat[2]);
-                t4 = +1.0 - 2.0 * (quat[2] * quat[2] + quat[3] * quat[3]);
-                Z = (std::atan2(t3, t4) * (180.0 / 3.141592653589793238463));
-
-                e = FbxVector4(X, Y, Z);
-
-                return e;
+            FbxVector4 QuaterniontoEuler(FbxQuaternion quaternion) {
+                return quaternion.DecomposeSphericalXYZ();
             }
 
             [[nodiscard]]
@@ -268,7 +254,8 @@ namespace tools {
 
             void SetTransform(FbxNode*& lNode, math::float3x4 modeltm)
             {
-                FbxVector4 Position(modeltm.w[0], modeltm.w[1], modeltm.w[2]);
+                FbxVector4 Position(-modeltm.w[0], -modeltm.w[1], -modeltm.w[2]);
+                //FbxVector4 Position(-modeltm.w[1], -modeltm.w[2], modeltm.w[0]); // Sideways
                 FbxVector4 Rotation = Rot3x3toDegrees(modeltm);
                 FbxVector4 Scale(1.0, 1.0, 1.0);
 
@@ -326,9 +313,12 @@ namespace tools {
 
                 // Create Control Points from Vertices
                 for (i = 0; i < prim_info.verts; ++i) {
-                    lVertices.push_back({ (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[0],
-                                          (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[1],
-                                          (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[2] });
+                    double x = (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[0];
+                    double y = (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[1];
+                    double z = (*buf++) * prim_info.vArray[pos].scale + prim_info.vArray[pos].bias[2];
+                    //lVertices.push_back({ -y,-z,x });
+                    //lVertices.push_back({ x,y,z });
+                    lVertices.push_back({ -x,-y,-z });
                 }
 
                 // Map Vertices to Faces/Indices
@@ -563,7 +553,7 @@ namespace tools {
                         lTime.SetFrame(i);
                         lKeyIndex = lCurve_X->KeyAdd(lTime);
 
-                        lCurve_X->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].x);
+                        lCurve_X->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].x);
                         lCurve_X->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
                     }
 
@@ -572,7 +562,7 @@ namespace tools {
                         lTime.SetFrame(i);
                         lKeyIndex = lCurve_Y->KeyAdd(lTime);
 
-                        lCurve_Y->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].y);
+                        lCurve_Y->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].y);
                         lCurve_Y->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
                     }
 
@@ -580,7 +570,7 @@ namespace tools {
                         lTime.SetFrame(i);
                         lKeyIndex = lCurve_Z->KeyAdd(lTime);
 
-                        lCurve_Z->KeySetValue(lKeyIndex, transAnim.posKeyData->keys[i].z);
+                        lCurve_Z->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].z);
                         lCurve_Z->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationLinear);
                     }
 
@@ -588,7 +578,7 @@ namespace tools {
                     lCurve_Y->KeyModifyEnd();
                     lCurve_Z->KeyModifyEnd();
                 }
-
+                
                 // Animate Rotation
                 {
                     // Quaternion to Degrees
@@ -597,8 +587,8 @@ namespace tools {
                     rotKeyData.reserve(transAnim.rotKeyData->keyCount);
                     if (transAnim.rotKeyData->dataFormat == "DF_V4_32") {
                         for (auto key : transAnim.rotKeyData->keys) {
-                            FbxVector4 rotKey(key.x, key.y, key.z, key.w);
-                            rotKey = QuaterniontoEuler(rotKey);
+                            FbxQuaternion quatKey(key.x, key.y, key.z, key.w);
+                            FbxVector4 rotKey = QuaterniontoEuler(quatKey);
                             rotKeyData.emplace_back(rotKey);
                         }
                     }
@@ -643,7 +633,7 @@ namespace tools {
                     lCurve_X->KeyModifyEnd();
                     lCurve_Y->KeyModifyEnd();
                     lCurve_Z->KeyModifyEnd();
-                }
+                } 
                 
                 // Animate Scale
                 {

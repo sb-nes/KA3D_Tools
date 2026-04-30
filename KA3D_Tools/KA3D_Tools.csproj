@@ -136,6 +136,10 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Objects\ContentToolAPI.cs" />
+    <Compile Include="Objects\Geometry.cs" />
+    <Compile Include="Objects\GeometryView.xaml.cs">
+      <DependentUpon>GeometryView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Utilities\MathUtil.cs" />
     <Page Include="Dictionaries\ColourPalette.xaml">
       <SubType>Designer</SubType>
@@ -163,6 +167,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Objects\GeometryView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Objects\HGREditor.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

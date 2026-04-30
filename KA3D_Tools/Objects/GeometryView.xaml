@@ -1,0 +1,44 @@
+﻿<UserControl x:Class="KA3D_Tools.GeometryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:KA3D_Tools"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Background="Transparent">
+        <!--MouseLeftButtonDown="OnGrid_MouseLBD"
+          MouseLeftButtonUp="OnGrid_MouseLBU"
+          MouseRightButtonDown="OnGrid_MouseRBD"
+          MouseRightButtonUp="OnGrid_MouseRBU"
+          MouseMove="OnGrid_MouseMove"
+          MouseWheel="OnGrid_MouseWheel">-->
+        <Viewport3D x:Name="viewport"
+                    IsHitTestVisible="False">
+            <Viewport3D.Camera>
+                <PerspectiveCamera FarPlaneDistance="10000"
+                                   NearPlaneDistance="0.001"
+                                   FieldOfView="45"
+                                   Position="{Binding OffsetCaneraPosition}"
+                                   UpDirection="0,1,0"
+                                   LookDirection="{Binding CameraDirection}"/>
+            </Viewport3D.Camera>
+
+            <Viewport3D.Children>
+                <ModelVisual3D> <!-- Child 1 = Scene Lights -->
+                    <ModelVisual3D.Content>
+                        <Model3DGroup>
+                            <DirectionalLight Color="{Binding Keylight}"
+                                              Direction="{Binding CameraDirection}"/> <!--Flash-->
+                            <DirectionalLight Color="{Binding SkyLight}"
+                                              Direction="0,-1,0"/> <!--Sky-->
+                            <DirectionalLight Color="{Binding GroundLight}"
+                                              Direction="0,1,0"/> <!--Ground-->
+                            <AmbientLight Color="{Binding AmbientLight}"/>
+                        </Model3DGroup>
+                    </ModelVisual3D.Content>
+                </ModelVisual3D>
+            </Viewport3D.Children>
+        </Viewport3D>
+    </Grid>
+</UserControl>
