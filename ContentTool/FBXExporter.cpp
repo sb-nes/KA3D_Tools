@@ -139,7 +139,9 @@ namespace tools {
             }
 
             FbxNode* CreateHGRNode(FbxScene*& pScene, hgr::node& hgrNode) { // Recursive Function to create the tree structure
-                if (_uid.contains(hgrNode.name)) {
+                std::string nName = hgrNode.name + "_" + std::to_string(hgrNode.parentIndex);
+                // handle multiple nodes with the same name
+                if (_uid.contains(nName)) {
                     if (hgrNode.parentIndex == 4294967295) {
                         return lRootNode->FindChild(hgrNode.name.c_str()); // returns parent node if exists
                     } else {
@@ -152,14 +154,14 @@ namespace tools {
                 if (hgrNode.parentIndex == 4294967295) {
                     FbxNode* lNode = CreateNode(pScene, hgrNode);
                     lRootNode->AddChild(lNode);
-                    _uid.insert(hgrNode.name);
+                    _uid.insert(nName);
                     return lNode;
                 } else {
                     FbxNode* lParent = CreateHGRNode(pScene, _assets.Nodes[hgrNode.parentIndex]); // Create or Find Parent Node
                     assert(lParent);
                     FbxNode* lNode = CreateNode(pScene, hgrNode);
                     lParent->AddChild(lNode);
-                    _uid.insert(hgrNode.name);
+                    _uid.insert(nName);
                     return lNode;
                 }
             }
@@ -298,6 +300,7 @@ namespace tools {
 
                 std::vector<FbxVector4> lVertices;
                 std::vector<FbxVector2> lVectors;
+                if (prim_info.formats[0].type == "DT_POӹԹON") { prim_info.formats[0].type = "DT_POSITION"; }
 
                 for (i = 0; i < prim_info.formatCount; ++i) {
                     if (VertexFormat::toDataType(prim_info.formats[i].type.c_str()) == VertexFormat::DT_POSITION) {
@@ -434,6 +437,8 @@ namespace tools {
                         lMaterial->SpecularFactor.Set(0.3);
 
                         for (int i = 0; i < hgrMaterial.vec4ParamCount;++i) {
+                            if (hgrMaterial.Vec4Params[i].param_type == "SPECULAR?") { hgrMaterial.Vec4Params[i].param_type = "SPECULARC"; }
+
                             if (hgrMaterial.Vec4Params[i].param_type == "AMBIENTC") {
                                 FbxDouble3 lAmbient(hgrMaterial.Vec4Params[i].value[0], hgrMaterial.Vec4Params[i].value[1], hgrMaterial.Vec4Params[i].value[2]);
                                 lMaterial->Ambient.Set(lAmbient);
@@ -550,7 +555,7 @@ namespace tools {
                     lCurve_Z->KeyModifyBegin();
 
                     for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i*transAnim.posKeyRate);
                         lKeyIndex = lCurve_X->KeyAdd(lTime);
 
                         lCurve_X->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].x);
@@ -559,7 +564,7 @@ namespace tools {
 
 
                     for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i * transAnim.posKeyRate);
                         lKeyIndex = lCurve_Y->KeyAdd(lTime);
 
                         lCurve_Y->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].y);
@@ -567,7 +572,7 @@ namespace tools {
                     }
 
                     for (i = 0; i < transAnim.posKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i * transAnim.posKeyRate);
                         lKeyIndex = lCurve_Z->KeyAdd(lTime);
 
                         lCurve_Z->KeySetValue(lKeyIndex, -transAnim.posKeyData->keys[i].z);
@@ -606,7 +611,7 @@ namespace tools {
                     lCurve_Z->KeyModifyBegin();
 
                     for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i * transAnim.rotKeyRate);
                         lKeyIndex = lCurve_X->KeyAdd(lTime);
 
                         lCurve_X->KeySetValue(lKeyIndex, -(float)rotKeyData[i][0]);
@@ -615,7 +620,7 @@ namespace tools {
 
 
                     for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i * transAnim.rotKeyRate);
                         lKeyIndex = lCurve_Y->KeyAdd(lTime);
 
                         lCurve_Y->KeySetValue(lKeyIndex, -(float)rotKeyData[i][1]);
@@ -623,7 +628,7 @@ namespace tools {
                     }
 
                     for (i = 0; i < transAnim.rotKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i * transAnim.rotKeyRate);
                         lKeyIndex = lCurve_Z->KeyAdd(lTime);
 
                         lCurve_Z->KeySetValue(lKeyIndex, -(float)rotKeyData[i][2]);
@@ -648,7 +653,7 @@ namespace tools {
                     lCurve_Z->KeyModifyBegin();
 
                     for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i* transAnim.sclKeyRate);
                         lKeyIndex = lCurve_X->KeyAdd(lTime);
 
                         lCurve_X->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].x);
@@ -657,7 +662,7 @@ namespace tools {
 
 
                     for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i* transAnim.sclKeyRate);
                         lKeyIndex = lCurve_Y->KeyAdd(lTime);
 
                         lCurve_Y->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].y);
@@ -665,7 +670,7 @@ namespace tools {
                     }
 
                     for (i = 0; i < transAnim.sclKeyData->keyCount; i++) {
-                        lTime.SetFrame(i);
+                        lTime.SetFrame(i* transAnim.sclKeyRate);
                         lKeyIndex = lCurve_Z->KeyAdd(lTime);
 
                         lCurve_Z->KeySetValue(lKeyIndex, transAnim.sclKeyData->keys[i].z);

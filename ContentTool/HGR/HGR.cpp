@@ -38,7 +38,7 @@ namespace tools::hgr {
             //info.check_id = swap_endian<u32>(info.check_id);
             SWAP(info.check_id, u32);
 
-            assert(info.check_id == id && "Check ID Failed");
+            assert((info.check_id == id) && "Check ID Failed");
             return true;
         }
 
@@ -266,10 +266,9 @@ namespace tools::hgr {
                     at += su32 * 4;
                 }
 
+                if (formats[i].format == "Ö2_" && formats[i].type == "DT_TEX0") { formats[i].format = "V2_16"; }
                 size = VertexFormat::getDataDim(VertexFormat::toDataFormat(formats[i].format.c_str()));
-                if (formats[i].type == "DT_POSITIOJ") {
-                    formats[i].type = "DT_POSITION";
-                }
+                if (formats[i].type == "DT_POSITIOJ") { formats[i].type = "DT_POSITION"; }
                 assert(size > 0);
                 length = VertexFormat::getDataSize(VertexFormat::toDataFormat(formats[i].format.c_str()));
                 length /= size;
@@ -974,6 +973,8 @@ namespace tools::hgr {
 
         memcpy(&(header->check_id), at, su32); at += su32;
         SWAP(header->check_id, u32);
+
+        assert((header->check_id == 305419776) && "Check ID Failed");
 
         // TODO: replace array pointers with vector
 
